@@ -37,39 +37,31 @@ struct Browser: Identifiable, Codable, Hashable {
     private func openWithArgs(_ url: URL, profile: String?, incognito: Bool) {
         guard let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) else { return }
         let bid = bundleID.lowercased()
+        let activate = AppConfig.load().activateBrowser
 
-        guard let bundle = Bundle(url: appURL),
-              let execName = bundle.executableURL?.lastPathComponent else {
-            open(url)
-            return
-        }
-        let execPath = appURL.appendingPathComponent("Contents/MacOS").path
-
-        var args: [String] = []
+        var browserArgs: [String] = []
 
         if bid.contains("chrome") || bid.contains("chromium") || bid.contains("brave") || bid.contains("edge") || bid.contains("vivaldi") || bid.contains("arc") {
-            if incognito { args.append("--incognito") }
-            if let profile = profile { args.append("--profile-directory=\(profile)") }
+            if incognito { browserArgs.append("--incognito") }
+            if let profile = profile { browserArgs.append("--profile-directory=\(profile)") }
         } else if bid.contains("firefox") {
-            if incognito { args.append("-private-window") }
-            if let profile = profile { args.append(contentsOf: ["-P", profile]) }
+            if incognito { browserArgs.append("-private-window") }
+            if let profile = profile { browserArgs.append(contentsOf: ["-P", profile]) }
         }
 
-        args.append(url.absoluteString)
+        // Use /usr/bin/open which properly activates the app and switches Space
+        var openArgs = ["-a", appURL.path]
+        if !activate { openArgs.append("-g") } // -g = don't bring to foreground
+        openArgs.append(url.absoluteString)
+        if !browserArgs.isEmpty {
+            openArgs.append("--args")
+            openArgs.append(contentsOf: browserArgs)
+        }
 
         let process = Process()
-        process.executableURL = URL(fileURLWithPath: "\(execPath)/\(execName)")
-        process.arguments = args
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+        process.arguments = openArgs
         try? process.run()
-
-        // Activate the browser after launching via Process
-        if AppConfig.load().activateBrowser {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                if let app = NSRunningApplication.runningApplications(withBundleIdentifier: self.bundleID).first {
-                    app.activate()
-                }
-            }
-        }
     }
 }
 
