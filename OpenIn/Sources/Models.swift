@@ -50,13 +50,13 @@ struct Browser: Identifiable, Codable, Hashable {
         }
 
         // Use /usr/bin/open which properly activates the app and switches Space
+        // URL goes as a browser arg so profile flags are respected
+        browserArgs.append(url.absoluteString)
+
         var openArgs = ["-a", appURL.path]
-        if !activate { openArgs.append("-g") } // -g = don't bring to foreground
-        openArgs.append(url.absoluteString)
-        if !browserArgs.isEmpty {
-            openArgs.append("--args")
-            openArgs.append(contentsOf: browserArgs)
-        }
+        if !activate { openArgs.append("-g") }
+        openArgs.append("--args")
+        openArgs.append(contentsOf: browserArgs)
 
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/open")
