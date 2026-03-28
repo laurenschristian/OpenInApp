@@ -50,6 +50,12 @@
 			</array>
 		</dict>
 	</array>
+	<key>SUPublicEDKey</key>
+	<string>pWheSmZGUvddHuccg70kqxgsXjIY10oYIjuuLKNDGL8=</string>
+	<key>SUFeedURL</key>
+	<string>https://raw.githubusercontent.com/laurenschristian/OpenInApp/main/appcast.xml</string>
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
 	<key>CFBundleDocumentTypes</key>
 	<array>
 		<dict>

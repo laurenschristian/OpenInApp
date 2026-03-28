@@ -143,6 +143,10 @@ struct MenuBarView: View {
             }
             .keyboardShortcut(",", modifiers: .command)
 
+            Button("Check for Updates...") {
+                (NSApp.delegate as? AppDelegate)?.updaterController.checkForUpdates(nil)
+            }
+
             Divider()
 
             Button("Quit OpenIn") {

@@ -1,6 +1,7 @@
 import AppKit
 import Carbon
 import ServiceManagement
+import Sparkle
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var hasLaunched = false
@@ -9,6 +10,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var lastSourceApp: String?
     private var configWatcher: DispatchSourceFileSystemObject?
     private var hudWindow: NSWindow?
+    let updaterController = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: nil, userDriverDelegate: nil)
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSAppleEventManager.shared().setEventHandler(

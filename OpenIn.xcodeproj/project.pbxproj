@@ -16,6 +16,8 @@
 		E10000010000000000000007 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = E10000020000000000000007; };
 		E10000010000000000000008 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = E10000020000000000000008; };
 		E10000010000000000000009 /* OnboardingWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = E10000020000000000000011; };
+		E10000010000000000000020 /* Sparkle.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E10000020000000000000020; };
+		E10000010000000000000021 /* Sparkle.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = E10000020000000000000020; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -30,6 +32,7 @@
 		E10000020000000000000009 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		E10000020000000000000010 /* OpenIn.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = OpenIn.entitlements; sourceTree = "<group>"; };
 		E10000020000000000000011 /* OnboardingWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingWindow.swift; sourceTree = "<group>"; };
+		E10000020000000000000020 /* Sparkle.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; path = Sparkle.framework; sourceTree = "<group>"; };
 		E10000030000000000000001 /* OpenIn.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = OpenIn.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -38,10 +41,25 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E10000010000000000000020 /* Sparkle.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		E10000040000000000000002 /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				E10000010000000000000021 /* Sparkle.framework in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXGroup section */
 		E10000050000000000000001 = {
@@ -90,6 +108,7 @@
 			isa = PBXGroup;
 			children = (
 				E10000020000000000000008 /* Assets.xcassets */,
+				E10000020000000000000020 /* Sparkle.framework */,
 			);
 			path = Resources;
 			sourceTree = "<group>";
@@ -104,6 +123,7 @@
 				E10000070000000000000001 /* Sources */,
 				E10000040000000000000001 /* Frameworks */,
 				E10000070000000000000002 /* Resources */,
+				E10000040000000000000002 /* Embed Frameworks */,
 			);
 			buildRules = (
 			);
@@ -238,6 +258,10 @@
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/OpenIn/Resources",
+				);
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = OpenIn/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -245,7 +269,7 @@
 					"@executable_path/../Frameworks",
 				);
 				LSUIElement = YES;
-				MARKETING_VERSION = 1.2.0;
+				MARKETING_VERSION = 1.4.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.lgn.openin;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -261,6 +285,10 @@
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/OpenIn/Resources",
+				);
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = OpenIn/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -268,7 +296,7 @@
 					"@executable_path/../Frameworks",
 				);
 				LSUIElement = YES;
-				MARKETING_VERSION = 1.2.0;
+				MARKETING_VERSION = 1.4.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.lgn.openin;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
