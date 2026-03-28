@@ -39,29 +39,34 @@ struct Browser: Identifiable, Codable, Hashable {
         let bid = bundleID.lowercased()
         let activate = AppConfig.load().activateBrowser
 
-        var browserArgs: [String] = []
-
-        if bid.contains("chrome") || bid.contains("chromium") || bid.contains("brave") || bid.contains("edge") || bid.contains("vivaldi") || bid.contains("arc") {
-            if incognito { browserArgs.append("--incognito") }
-            if let profile = profile { browserArgs.append("--profile-directory=\(profile)") }
-        } else if bid.contains("firefox") {
-            if incognito { browserArgs.append("-private-window") }
-            if let profile = profile { browserArgs.append(contentsOf: ["-P", profile]) }
+        guard let bundle = Bundle(url: appURL),
+              let execURL = bundle.executableURL else {
+            open(url)
+            return
         }
 
-        // Use /usr/bin/open which properly activates the app and switches Space
-        // URL goes as a browser arg so profile flags are respected
-        browserArgs.append(url.absoluteString)
+        var args: [String] = []
 
-        var openArgs = ["-a", appURL.path]
-        if !activate { openArgs.append("-g") }
-        openArgs.append("--args")
-        openArgs.append(contentsOf: browserArgs)
+        if bid.contains("chrome") || bid.contains("chromium") || bid.contains("brave") || bid.contains("edge") || bid.contains("vivaldi") || bid.contains("arc") {
+            if incognito { args.append("--incognito") }
+            if let profile = profile { args.append("--profile-directory=\(profile)") }
+        } else if bid.contains("firefox") {
+            if incognito { args.append("-private-window") }
+            if let profile = profile { args.append(contentsOf: ["-P", profile]) }
+        }
+
+        args.append(url.absoluteString)
 
         let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/open")
-        process.arguments = openArgs
+        process.executableURL = execURL
+        process.arguments = args
         try? process.run()
+
+        if activate {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [bundleID] in
+                NSRunningApplication.runningApplications(withBundleIdentifier: bundleID).first?.activate(options: [.activateIgnoringOtherApps])
+            }
+        }
     }
 }
 
