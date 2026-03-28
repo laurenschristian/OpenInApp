@@ -61,6 +61,15 @@ struct Browser: Identifiable, Codable, Hashable {
         process.executableURL = URL(fileURLWithPath: "\(execPath)/\(execName)")
         process.arguments = args
         try? process.run()
+
+        // Activate the browser after launching via Process
+        if AppConfig.load().activateBrowser {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                if let app = NSRunningApplication.runningApplications(withBundleIdentifier: self.bundleID).first {
+                    app.activate()
+                }
+            }
+        }
     }
 }
 
