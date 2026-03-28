@@ -77,22 +77,23 @@ struct PickerView: View {
                     .foregroundStyle(.white.opacity(0.5))
                 }
 
-                // Browser grid
-                let gridColumns = [GridItem(.adaptive(minimum: 80), spacing: 12)]
-                LazyVGrid(columns: gridColumns, spacing: 12) {
-                    ForEach(Array(sortedBrowsers.enumerated()), id: \.element.id) { index, browser in
-                        BrowserCard(
-                            browser: browser,
-                            index: index + 1,
-                            isHovered: hoveredID == browser.id,
-                            isLastUsed: browser.id == lastUsedBrowserID,
-                            action: { onPick(browser) }
-                        )
-                        .onHover { hoveredID = $0 ? browser.id : nil }
+                // Browser row — always single horizontal line
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 16) {
+                        ForEach(Array(sortedBrowsers.enumerated()), id: \.element.id) { index, browser in
+                            BrowserCard(
+                                browser: browser,
+                                index: index + 1,
+                                isHovered: hoveredID == browser.id,
+                                isLastUsed: browser.id == lastUsedBrowserID,
+                                action: { onPick(browser) }
+                            )
+                            .onHover { hoveredID = $0 ? browser.id : nil }
+                        }
                     }
+                    .padding(.horizontal, 4)
                 }
             }
-            .frame(maxWidth: 480)
             .padding(28)
             .background(
                 RoundedRectangle(cornerRadius: 20)
