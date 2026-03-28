@@ -25,10 +25,13 @@ struct SettingsView: View {
             URLRewritingTab(rulesEngine: rulesEngine)
                 .tabItem { Label("URL Rewriting", systemImage: "wand.and.stars") }
 
+            StatsTab(rulesEngine: rulesEngine)
+                .tabItem { Label("Stats", systemImage: "chart.bar") }
+
             AboutTab()
                 .tabItem { Label("About", systemImage: "info.circle") }
         }
-        .frame(width: 560, height: 440)
+        .frame(width: 580, height: 480)
     }
 }
 
@@ -66,8 +69,8 @@ struct GeneralTab: View {
                     }
                 )) {
                     Text("Show Picker").tag("")
-                    ForEach(browserManager.browsers) { browser in
-                        Text(browser.name).tag(browser.bundleID)
+                    ForEach(browserManager.browserOptions) { browser in
+                        Text(browser.name).tag(browser.id)
                     }
                 }
 
@@ -92,15 +95,33 @@ struct GeneralTab: View {
 
             Section("Detected Browsers") {
                 ForEach(browserManager.browsers) { browser in
-                    HStack(spacing: 8) {
-                        Image(nsImage: browser.icon)
-                            .resizable()
-                            .frame(width: 20, height: 20)
-                        Text(browser.name)
-                        Spacer()
-                        Text(browser.bundleID)
-                            .font(.system(size: 10, design: .monospaced))
-                            .foregroundStyle(.secondary)
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack(spacing: 8) {
+                            Image(nsImage: browser.icon)
+                                .resizable()
+                                .frame(width: 20, height: 20)
+                            Text(browser.name)
+                            Spacer()
+                            Text(browser.bundleID)
+                                .font(.system(size: 10, design: .monospaced))
+                                .foregroundStyle(.secondary)
+                        }
+                        let profiles = browserManager.browserOptions.filter {
+                            $0.bundleID == browser.bundleID && $0.profileDir != nil
+                        }
+                        if !profiles.isEmpty {
+                            ForEach(profiles) { profile in
+                                HStack(spacing: 4) {
+                                    Image(systemName: "person.circle")
+                                        .font(.system(size: 10))
+                                        .foregroundStyle(.secondary)
+                                    Text(profile.profileName ?? profile.profileDir ?? "")
+                                        .font(.system(size: 11))
+                                        .foregroundStyle(.secondary)
+                                }
+                                .padding(.leading, 28)
+                            }
+                        }
                     }
                 }
             }
@@ -370,6 +391,85 @@ struct URLRewritingTab: View {
     }
 }
 
+// MARK: - Stats Tab
+
+struct StatsTab: View {
+    @ObservedObject var rulesEngine: RulesEngine
+
+    private var stats: AppConfig.Stats { rulesEngine.config.stats }
+
+    private var topDomains: [(String, Int)] {
+        stats.domainCounts
+            .sorted { $0.value > $1.value }
+            .prefix(10)
+            .map { ($0.key, $0.value) }
+    }
+
+    private var topBrowsers: [(String, Int)] {
+        stats.browserCounts
+            .sorted { $0.value > $1.value }
+            .map { ($0.key, $0.value) }
+    }
+
+    var body: some View {
+        Form {
+            Section {
+                HStack {
+                    Text("Total URLs routed")
+                    Spacer()
+                    Text("\(stats.totalURLsRouted)")
+                        .fontWeight(.medium)
+                        .monospacedDigit()
+                }
+            }
+
+            Section("Top Domains") {
+                if topDomains.isEmpty {
+                    Text("No data yet")
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(topDomains, id: \.0) { domain, count in
+                        HStack {
+                            Text(domain)
+                                .font(.system(size: 12, design: .monospaced))
+                            Spacer()
+                            Text("\(count)")
+                                .monospacedDigit()
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+
+            Section("Browsers") {
+                if topBrowsers.isEmpty {
+                    Text("No data yet")
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(topBrowsers, id: \.0) { browser, count in
+                        HStack {
+                            Text(browser)
+                            Spacer()
+                            Text("\(count)")
+                                .monospacedDigit()
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+
+            Section {
+                Button("Reset Stats", role: .destructive) {
+                    rulesEngine.config.stats = AppConfig.Stats()
+                    rulesEngine.save()
+                }
+            }
+        }
+        .formStyle(.grouped)
+        .padding()
+    }
+}
+
 // MARK: - About Tab
 
 struct AboutTab: View {
@@ -382,7 +482,7 @@ struct AboutTab: View {
             Text("OpenIn")
                 .font(.title)
                 .fontWeight(.bold)
-            Text("v1.2.0")
+            Text("v1.3.0")
                 .foregroundStyle(.secondary)
             Text("A fast, native URL router for macOS")
                 .foregroundStyle(.secondary)
@@ -396,6 +496,10 @@ struct AboutTab: View {
                 }
             }
             .padding(.top, 4)
+
+            Text("Cmd+Shift+B to open browser picker")
+                .font(.system(size: 11))
+                .foregroundStyle(.tertiary)
 
             Spacer()
             Text("Config: ~/.config/openin/config.json")

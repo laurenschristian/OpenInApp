@@ -34,6 +34,11 @@ final class RulesEngine: ObservableObject {
         save()
     }
 
+    func recordStat(url: URL, browserName: String) {
+        config.recordStat(url: url, browserName: browserName)
+        save()
+    }
+
     var recentURLs: [RecentURL] {
         config.recentURLs
     }

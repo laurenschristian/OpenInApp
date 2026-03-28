@@ -8,78 +8,113 @@ struct PickerView: View {
     let lastUsedBrowserID: String?
     let onPick: (Browser) -> Void
     let onDismiss: () -> Void
+    @State private var editableURL: String
     @State private var hoveredID: String?
     @State private var copied = false
+    @State private var isPresented = false
+
+    init(url: URL, browsers: [Browser], sourceApp: String?, lastUsedBrowserID: String?, onPick: @escaping (Browser) -> Void, onDismiss: @escaping () -> Void) {
+        self.url = url
+        self.browsers = browsers
+        self.sourceApp = sourceApp
+        self.lastUsedBrowserID = lastUsedBrowserID
+        self.onPick = onPick
+        self.onDismiss = onDismiss
+        self._editableURL = State(initialValue: url.absoluteString)
+    }
+
+    private var resolvedURL: URL {
+        URL(string: editableURL) ?? url
+    }
+
+    private let columns = [GridItem(.adaptive(minimum: 72), spacing: 10)]
 
     var body: some View {
-        VStack(spacing: 10) {
-            // URL display with copy button
-            HStack(spacing: 6) {
-                Text(url.absoluteString)
-                    .font(.system(size: 11, design: .monospaced))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
+        VStack(spacing: 0) {
+            // Top accent line
+            LinearGradient(colors: [.blue, .indigo], startPoint: .leading, endPoint: .trailing)
+                .frame(height: 1)
 
-                Button(action: copyURL) {
-                    Image(systemName: copied ? "checkmark" : "doc.on.doc")
-                        .font(.system(size: 10))
-                        .foregroundStyle(copied ? .green : .secondary)
+            VStack(spacing: 10) {
+                // Editable URL bar
+                HStack(spacing: 6) {
+                    TextField("URL", text: $editableURL)
+                        .font(.system(size: 11, design: .monospaced))
+                        .textFieldStyle(.plain)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+
+                    Button(action: copyURL) {
+                        Image(systemName: copied ? "checkmark" : "doc.on.doc")
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundStyle(copied ? .green : .secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Copy URL")
                 }
-                .buttonStyle(.plain)
-                .help("Copy URL")
-            }
-            .padding(.horizontal, 14)
-            .padding(.top, 6)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(.quaternary.opacity(0.5))
+                .clipShape(RoundedRectangle(cornerRadius: 6))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 6)
+                        .strokeBorder(.quaternary, lineWidth: 0.5)
+                )
+                .padding(.horizontal, 14)
+                .padding(.top, 12)
 
-            // Source app indicator
-            if let sourceApp = sourceApp {
-                HStack(spacing: 4) {
-                    Image(systemName: "arrow.right.circle")
-                        .font(.system(size: 9))
-                    Text("from \(appName(for: sourceApp))")
-                        .font(.system(size: 9))
+                // Source app
+                if let sourceApp = sourceApp {
+                    HStack(spacing: 4) {
+                        if let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: sourceApp) {
+                            Image(nsImage: NSWorkspace.shared.icon(forFile: appURL.path))
+                                .resizable()
+                                .frame(width: 12, height: 12)
+                        }
+                        Text("from \(appName(for: sourceApp))")
+                            .font(.system(size: 9, weight: .medium))
+                    }
+                    .foregroundStyle(.tertiary)
                 }
-                .foregroundStyle(.tertiary)
-            }
 
-            // Browser grid
-            HStack(spacing: 14) {
-                ForEach(Array(sortedBrowsers.enumerated()), id: \.element.id) { index, browser in
-                    BrowserButton(
-                        browser: browser,
-                        index: index + 1,
-                        isHovered: hoveredID == browser.id,
-                        isLastUsed: browser.bundleID == lastUsedBrowserID,
-                        action: { onPick(browser) }
-                    )
-                    .onHover { hoveredID = $0 ? browser.id : nil }
+                // Browser grid
+                LazyVGrid(columns: columns, spacing: 10) {
+                    ForEach(Array(sortedBrowsers.enumerated()), id: \.element.id) { index, browser in
+                        BrowserButton(
+                            browser: browser,
+                            index: index + 1,
+                            isHovered: hoveredID == browser.id,
+                            isLastUsed: browser.id == lastUsedBrowserID,
+                            action: { onPick(browser) }
+                        )
+                        .onHover { hoveredID = $0 ? browser.id : nil }
+                    }
                 }
+                .padding(.horizontal, 14)
+                .padding(.bottom, 14)
             }
-            .padding(.horizontal, 14)
-            .padding(.bottom, 10)
-
-            // Hint
-            Text("Esc to dismiss")
-                .font(.system(size: 9))
-                .foregroundStyle(.quaternary)
-                .padding(.bottom, 4)
         }
-        .frame(minWidth: 200)
-        .padding(.vertical, 6)
-        .background(.ultraThinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .frame(minWidth: 240)
+        .background(.regularMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 14))
         .overlay(
-            RoundedRectangle(cornerRadius: 12)
+            RoundedRectangle(cornerRadius: 14)
                 .strokeBorder(.quaternary, lineWidth: 0.5)
         )
         .shadow(color: .black.opacity(0.3), radius: 20, y: 8)
+        .opacity(isPresented ? 1 : 0)
+        .scaleEffect(isPresented ? 1 : 0.95)
+        .onAppear {
+            withAnimation(.easeOut(duration: 0.15)) {
+                isPresented = true
+            }
+        }
     }
 
     private var sortedBrowsers: [Browser] {
         guard let lastUsed = lastUsedBrowserID else { return browsers }
         var sorted = browsers
-        if let idx = sorted.firstIndex(where: { $0.bundleID == lastUsed }), idx > 0 {
+        if let idx = sorted.firstIndex(where: { $0.id == lastUsed }), idx > 0 {
             let browser = sorted.remove(at: idx)
             sorted.insert(browser, at: 0)
         }
@@ -88,7 +123,7 @@ struct PickerView: View {
 
     private func copyURL() {
         NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(url.absoluteString, forType: .string)
+        NSPasteboard.general.setString(editableURL, forType: .string)
         copied = true
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { copied = false }
     }
@@ -111,36 +146,59 @@ struct BrowserButton: View {
     var body: some View {
         Button(action: action) {
             VStack(spacing: 4) {
-                ZStack(alignment: .topTrailing) {
+                ZStack(alignment: .bottomTrailing) {
                     Image(nsImage: browser.icon)
                         .resizable()
                         .aspectRatio(contentMode: .fit)
-                        .frame(width: 48, height: 48)
-                        .scaleEffect(isHovered ? 1.15 : 1.0)
-                        .animation(.easeOut(duration: 0.15), value: isHovered)
+                        .frame(width: 40, height: 40)
+                        .scaleEffect(isHovered ? 1.12 : 1.0)
+                        .animation(.easeOut(duration: 0.12), value: isHovered)
 
-                    if isLastUsed {
+                    // Profile badge
+                    if let profileName = browser.profileName {
+                        Text(String(profileName.prefix(2)))
+                            .font(.system(size: 8, weight: .bold, design: .rounded))
+                            .foregroundStyle(.white)
+                            .frame(width: 16, height: 16)
+                            .background(profileColor(for: profileName))
+                            .clipShape(Circle())
+                            .overlay(Circle().strokeBorder(.white.opacity(0.3), lineWidth: 0.5))
+                            .offset(x: 3, y: 3)
+                    } else if isLastUsed {
                         Circle()
                             .fill(.blue)
                             .frame(width: 8, height: 8)
-                            .offset(x: 2, y: -2)
+                            .offset(x: 2, y: 2)
                     }
                 }
 
                 Text(browser.name)
-                    .font(.system(size: 10, weight: isLastUsed ? .semibold : .regular))
+                    .font(.system(size: 9, weight: isLastUsed ? .semibold : .regular))
                     .foregroundStyle(.primary)
                     .lineLimit(1)
+                    .truncationMode(.tail)
+                    .frame(maxWidth: 72)
 
                 if index >= 1 && index <= 9 {
                     Text("\u{2318}\(index)")
-                        .font(.system(size: 9, design: .monospaced))
+                        .font(.system(size: 8, weight: .medium, design: .monospaced))
                         .foregroundStyle(.tertiary)
+                        .padding(.horizontal, 4)
+                        .padding(.vertical, 1)
+                        .background(.quaternary.opacity(0.5))
+                        .clipShape(Capsule())
                 }
             }
+            .padding(.vertical, 4)
         }
         .buttonStyle(.plain)
         .modifier(OptionalKeyboardShortcut(index: index))
+    }
+
+    private func profileColor(for name: String) -> Color {
+        let colors: [Color] = [.blue, .purple, .orange, .green, .pink, .teal, .indigo]
+        let hash = abs(name.hashValue)
+        return colors[hash % colors.count]
     }
 }
 
@@ -205,8 +263,6 @@ final class PickerWindowController {
         // Position near mouse
         let mouseLocation = NSEvent.mouseLocation
         let wSize = hostingView.fittingSize
-
-        // Find the screen containing the mouse
         let screen = NSScreen.screens.first { NSMouseInRect(mouseLocation, $0.frame, false) } ?? NSScreen.main
 
         if let screen = screen {
@@ -224,7 +280,6 @@ final class PickerWindowController {
         NSApp.activate(ignoringOtherApps: true)
         self.window = w
 
-        // Escape key and click-outside handling
         w.onEscape = { [weak self] in
             self?.finish(with: nil)
         }
@@ -234,7 +289,7 @@ final class PickerWindowController {
         }
 
         localMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            if event.keyCode == 53 { // Escape
+            if event.keyCode == 53 {
                 self?.finish(with: nil)
                 return nil
             }
@@ -263,7 +318,6 @@ final class PickerWindowController {
     }
 }
 
-// Custom NSPanel subclass that can become key (for keyboard events)
 final class PickerPanel: NSPanel {
     var onEscape: (() -> Void)?
 
@@ -275,7 +329,7 @@ final class PickerPanel: NSPanel {
     }
 
     override func keyDown(with event: NSEvent) {
-        if event.keyCode == 53 { // Escape
+        if event.keyCode == 53 {
             onEscape?()
         } else {
             super.keyDown(with: event)

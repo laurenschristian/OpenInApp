@@ -23,6 +23,10 @@ struct MenuBarView: View {
     @ObservedObject var browserManager: BrowserManager
     @ObservedObject var rulesEngine: RulesEngine
 
+    private var braveProfiles: [Browser] {
+        browserManager.browserOptions.filter { $0.bundleID.lowercased().contains("brave") && $0.profileDir != nil }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             if !browserManager.isDefaultBrowser {
@@ -30,6 +34,56 @@ struct MenuBarView: View {
                     browserManager.setAsDefaultBrowser()
                     browserManager.reload()
                 }
+                Divider()
+            }
+
+            // Stats
+            let stats = rulesEngine.config.stats
+            if stats.totalURLsRouted > 0 {
+                HStack(spacing: 4) {
+                    Image(systemName: "arrow.triangle.branch")
+                        .font(.system(size: 10))
+                    Text("\(stats.totalURLsRouted) URLs routed")
+                        .font(.system(size: 11))
+                }
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 4)
+
+                Divider()
+            }
+
+            // Brave profiles quick-switch
+            if !braveProfiles.isEmpty {
+                Text("Brave Profiles")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 4)
+
+                ForEach(braveProfiles) { profile in
+                    Button {
+                        rulesEngine.config.defaultBrowserID = profile.bundleID
+                        rulesEngine.config.defaultBrowserProfile = profile.profileDir
+                        rulesEngine.save()
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(nsImage: profile.icon)
+                                .resizable()
+                                .frame(width: 14, height: 14)
+                            Text(profile.profileName ?? profile.name)
+                                .font(.system(size: 11))
+                            Spacer()
+                            if rulesEngine.config.defaultBrowserID == profile.bundleID &&
+                               rulesEngine.config.defaultBrowserProfile == profile.profileDir {
+                                Image(systemName: "checkmark")
+                                    .font(.system(size: 10, weight: .semibold))
+                                    .foregroundStyle(.blue)
+                            }
+                        }
+                    }
+                }
+
                 Divider()
             }
 
@@ -65,11 +119,22 @@ struct MenuBarView: View {
                 Divider()
             }
 
-            Text("\(rulesEngine.config.rules.count) rules active")
-                .font(.system(size: 11))
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 4)
+            // Info row
+            HStack(spacing: 8) {
+                Text("\(rulesEngine.config.rules.count) rules active")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Text("\u{2318}\u{21E7}B picker")
+                    .font(.system(size: 9, weight: .medium, design: .monospaced))
+                    .foregroundStyle(.tertiary)
+                    .padding(.horizontal, 5)
+                    .padding(.vertical, 2)
+                    .background(.quaternary.opacity(0.5))
+                    .clipShape(Capsule())
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 4)
 
             Divider()
 

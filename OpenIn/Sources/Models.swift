@@ -3,7 +3,15 @@ import AppKit
 struct Browser: Identifiable, Codable, Hashable {
     let bundleID: String
     let name: String
-    var id: String { bundleID }
+    var profileDir: String?
+    var profileName: String?
+
+    var id: String {
+        if let profileDir = profileDir {
+            return "\(bundleID)::\(profileDir)"
+        }
+        return bundleID
+    }
 
     var icon: NSImage {
         guard let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) else {
@@ -13,9 +21,10 @@ struct Browser: Identifiable, Codable, Hashable {
     }
 
     func open(_ url: URL, profile: String? = nil, incognito: Bool = false) {
-        // If we need CLI args (profile or incognito), use Process
-        if profile != nil || incognito {
-            openWithArgs(url, profile: profile, incognito: incognito)
+        let effectiveProfile = profile ?? profileDir
+
+        if effectiveProfile != nil || incognito {
+            openWithArgs(url, profile: effectiveProfile, incognito: incognito)
             return
         }
 
@@ -29,10 +38,8 @@ struct Browser: Identifiable, Codable, Hashable {
         guard let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) else { return }
         let bid = bundleID.lowercased()
 
-        // Find the actual executable from the app bundle's Info.plist
         guard let bundle = Bundle(url: appURL),
               let execName = bundle.executableURL?.lastPathComponent else {
-            // Fallback to standard open
             open(url)
             return
         }
@@ -128,15 +135,24 @@ struct RecentURL: Codable, Identifiable {
 }
 
 struct AppConfig: Codable {
+    struct Stats: Codable {
+        var totalURLsRouted: Int = 0
+        var domainCounts: [String: Int] = [:]
+        var browserCounts: [String: Int] = [:]
+    }
+
     var rules: [Rule] = []
     var rewriteRules: [URLRewriteRule] = []
     var defaultBrowserID: String?
+    var defaultBrowserProfile: String?
     var showPickerOnNoMatch: Bool = true
     var hideAfterPick: Bool = true
     var launchAtLogin: Bool = false
     var recentURLs: [RecentURL] = []
     var stripTrackingParams: Bool = true
     var forceHTTPS: Bool = false
+    var showNotifications: Bool = true
+    var stats: Stats = Stats()
 
     static let defaultTrackingParams = [
         "utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content",
@@ -170,6 +186,13 @@ struct AppConfig: Codable {
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         guard let data = try? encoder.encode(self) else { return }
         try? data.write(to: Self.configURL, options: .atomic)
+    }
+
+    mutating func recordStat(url: URL, browserName: String) {
+        stats.totalURLsRouted += 1
+        let host = url.host ?? "unknown"
+        stats.domainCounts[host, default: 0] += 1
+        stats.browserCounts[browserName, default: 0] += 1
     }
 
     mutating func addRecentURL(_ url: URL, browserID: String, sourceApp: String?) {
