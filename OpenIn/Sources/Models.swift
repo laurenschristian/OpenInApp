@@ -141,6 +141,7 @@ struct AppConfig: Codable {
         var browserCounts: [String: Int] = [:]
     }
 
+    var pinnedBrowserIDs: [String] = []
     var rules: [Rule] = []
     var rewriteRules: [URLRewriteRule] = []
     var defaultBrowserID: String?

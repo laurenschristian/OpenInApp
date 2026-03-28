@@ -94,6 +94,8 @@ struct PickerView: View {
                     .padding(.horizontal, 4)
                 }
             }
+            .frame(maxWidth: 600)
+            .fixedSize(horizontal: true, vertical: true)
             .padding(28)
             .background(
                 RoundedRectangle(cornerRadius: 20)

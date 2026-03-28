@@ -65,7 +65,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func handleHotkey() {
         guard let url = lastRoutedURL else { return }
-        let browsers = BrowserManager.shared.browsers
+        let browsers = BrowserManager.shared.browserOptions
         guard !browsers.isEmpty else { return }
 
         PickerWindowController.shared.show(url: url, browsers: browsers, sourceApp: lastSourceApp) { [weak self] chosen in
@@ -246,8 +246,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
 
-        // Show picker
-        let browsers = bm.browsers
+        // Show picker with profiles
+        let browsers = bm.browserOptions
         guard !browsers.isEmpty else {
             NSWorkspace.shared.open(cleanURL)
             return

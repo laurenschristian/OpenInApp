@@ -59,6 +59,21 @@ final class BrowserManager: ObservableObject {
             }
         }
 
+        // Sort options: pinned profiles first, then alphabetical
+        let config = AppConfig.load()
+        let pinned = config.pinnedBrowserIDs
+
+        options.sort { a, b in
+            let aPin = pinned.firstIndex(of: a.id)
+            let bPin = pinned.firstIndex(of: b.id)
+            // Pinned items come first, in pinned order
+            if let ai = aPin, let bi = bPin { return ai < bi }
+            if aPin != nil { return true }
+            if bPin != nil { return false }
+            // Then alphabetical
+            return a.name.localizedCaseInsensitiveCompare(b.name) == .orderedAscending
+        }
+
         if Thread.isMainThread {
             self.browsers = result
             self.browserOptions = options
