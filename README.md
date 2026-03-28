@@ -29,6 +29,12 @@ A fast, native macOS URL router and browser picker.<br>
 
 ## Installation
 
+### Homebrew
+
+```sh
+brew install laurenschristian/tap/openin
+```
+
 ### Download
 
 Grab the latest `.dmg` from [Releases](https://github.com/laurenschristian/OpenInApp/releases), open it, and drag OpenIn to `/Applications`.
@@ -38,10 +44,10 @@ Grab the latest `.dmg` from [Releases](https://github.com/laurenschristian/OpenI
 ```sh
 git clone https://github.com/laurenschristian/OpenInApp.git
 cd OpenInApp
-open OpenIn.xcodeproj
+make install
 ```
 
-Build with Xcode 15+ targeting macOS 14+. See [Building from Source](#building-from-source) for details.
+This builds a Release binary and copies it to `/Applications`. Requires Xcode 15+ and macOS 14+. See [Building from Source](#building-from-source) for more details.
 
 ## Screenshot
 
