@@ -91,6 +91,12 @@ struct GeneralTab: View {
                         }
                     }
                 ))
+
+
+                Toggle("Switch to browser when opening URL", isOn: Binding(
+                    get: { rulesEngine.config.activateBrowser },
+                    set: { rulesEngine.config.activateBrowser = $0; rulesEngine.save() }
+                ))
             }
 
             Section("Detected Browsers") {

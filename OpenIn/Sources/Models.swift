@@ -29,7 +29,7 @@ struct Browser: Identifiable, Codable, Hashable {
         }
 
         let config = NSWorkspace.OpenConfiguration()
-        config.activates = true
+        config.activates = AppConfig.load().activateBrowser
         guard let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) else { return }
         NSWorkspace.shared.open([url], withApplicationAt: appURL, configuration: config)
     }
@@ -148,6 +148,7 @@ struct AppConfig: Codable {
     var defaultBrowserProfile: String?
     var showPickerOnNoMatch: Bool = true
     var hideAfterPick: Bool = true
+    var activateBrowser: Bool = true
     var launchAtLogin: Bool = false
     var recentURLs: [RecentURL] = []
     var stripTrackingParams: Bool = true
