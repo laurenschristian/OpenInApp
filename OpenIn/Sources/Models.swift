@@ -38,6 +38,8 @@ struct Browser: Identifiable, Codable, Hashable {
         guard let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) else { return }
         let bid = bundleID.lowercased()
         let activate = AppConfig.load().activateBrowser
+        let isChromium = bid.contains("chrome") || bid.contains("chromium") || bid.contains("brave") || bid.contains("edge") || bid.contains("vivaldi") || bid.contains("arc")
+        let isFirefox = bid.contains("firefox")
 
         guard let bundle = Bundle(url: appURL),
               let execURL = bundle.executableURL else {
@@ -47,10 +49,10 @@ struct Browser: Identifiable, Codable, Hashable {
 
         var args: [String] = []
 
-        if bid.contains("chrome") || bid.contains("chromium") || bid.contains("brave") || bid.contains("edge") || bid.contains("vivaldi") || bid.contains("arc") {
+        if isChromium {
             if incognito { args.append("--incognito") }
             if let profile = profile { args.append("--profile-directory=\(profile)") }
-        } else if bid.contains("firefox") {
+        } else if isFirefox {
             if incognito { args.append("-private-window") }
             if let profile = profile { args.append(contentsOf: ["-P", profile]) }
         }
@@ -62,12 +64,17 @@ struct Browser: Identifiable, Codable, Hashable {
         process.arguments = args
         try? process.run()
 
+        // Activate on current Space — don't switch to the browser's Space
         if activate {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [bundleID] in
-                NSRunningApplication.runningApplications(withBundleIdentifier: bundleID).first?.activate(options: [.activateIgnoringOtherApps])
+                guard let app = NSRunningApplication.runningApplications(withBundleIdentifier: bundleID).first else { return }
+                // activateIgnoringOtherApps brings the app forward on the CURRENT space
+                // The browser will create/reuse a window here instead of switching spaces
+                app.activate(options: [.activateIgnoringOtherApps])
             }
         }
     }
+
 }
 
 struct Rule: Identifiable, Codable {
