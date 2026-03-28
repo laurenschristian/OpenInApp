@@ -34,8 +34,12 @@ final class BrowserManager: ObservableObject {
             return a.name.localizedCaseInsensitiveCompare(b.name) == .orderedAscending
         }
 
-        DispatchQueue.main.async {
+        if Thread.isMainThread {
             self.browsers = result
+        } else {
+            DispatchQueue.main.async {
+                self.browsers = result
+            }
         }
     }
 

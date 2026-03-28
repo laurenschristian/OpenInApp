@@ -27,16 +27,16 @@ struct Browser: Identifiable, Codable, Hashable {
 
     private func openWithArgs(_ url: URL, profile: String?, incognito: Bool) {
         guard let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) else { return }
-        let execPath = appURL.appendingPathComponent("Contents/MacOS").path
         let bid = bundleID.lowercased()
 
-        // Find the actual executable
-        guard let contents = try? FileManager.default.contentsOfDirectory(atPath: execPath),
-              let exec = contents.first else {
+        // Find the actual executable from the app bundle's Info.plist
+        guard let bundle = Bundle(url: appURL),
+              let execName = bundle.executableURL?.lastPathComponent else {
             // Fallback to standard open
             open(url)
             return
         }
+        let execPath = appURL.appendingPathComponent("Contents/MacOS").path
 
         var args: [String] = []
 
@@ -51,7 +51,7 @@ struct Browser: Identifiable, Codable, Hashable {
         args.append(url.absoluteString)
 
         let process = Process()
-        process.executableURL = URL(fileURLWithPath: "\(execPath)/\(exec)")
+        process.executableURL = URL(fileURLWithPath: "\(execPath)/\(execName)")
         process.arguments = args
         try? process.run()
     }
@@ -188,10 +188,11 @@ struct AppConfig: Codable {
 
         guard var components = URLComponents(string: urlString) else { return url }
 
-        // Strip tracking params
+        // Strip tracking params (case-insensitive comparison)
         if stripTrackingParams, let queryItems = components.queryItems {
+            let trackingSet = Set(Self.defaultTrackingParams.map { $0.lowercased() })
             let filtered = queryItems.filter { item in
-                !Self.defaultTrackingParams.contains(item.name.lowercased())
+                !trackingSet.contains(item.name.lowercased())
             }
             components.queryItems = filtered.isEmpty ? nil : filtered
         }

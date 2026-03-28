@@ -3,8 +3,8 @@ import SwiftUI
 @main
 struct OpenInApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
-    @StateObject private var browserManager = BrowserManager.shared
-    @StateObject private var rulesEngine = RulesEngine.shared
+    @ObservedObject private var browserManager = BrowserManager.shared
+    @ObservedObject private var rulesEngine = RulesEngine.shared
 
     var body: some Scene {
         MenuBarExtra {

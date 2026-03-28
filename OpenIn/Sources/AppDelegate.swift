@@ -56,7 +56,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         // Try getting the PID from AppleEvent attributes
-        if let pidDesc = event.attributeDescriptor(forKeyword: AEKeyword(keySenderPIDAttr)) {
+        if let pidDesc = event.attributeDescriptor(forKeyword: keySenderPIDAttr) {
             let pid = pidDesc.int32Value
             if pid > 0, let app = NSRunningApplication(processIdentifier: pid) {
                 return app.bundleIdentifier
@@ -78,6 +78,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             let rule = engine.config.rules.first { $0.matches(url: cleanURL, sourceApp: sourceApp) && $0.enabled }
             browser.open(cleanURL, profile: rule?.browserProfile, incognito: rule?.openIncognito ?? false)
             engine.recordURL(cleanURL, browserID: browser.bundleID, sourceApp: sourceApp)
+            return
+        }
+
+        // If picker is disabled and no rule matched, open in system default
+        if !engine.config.showPickerOnNoMatch {
+            NSWorkspace.shared.open(cleanURL)
             return
         }
 

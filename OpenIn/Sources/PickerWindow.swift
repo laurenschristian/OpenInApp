@@ -132,7 +132,7 @@ struct BrowserButton: View {
                     .foregroundStyle(.primary)
                     .lineLimit(1)
 
-                if index <= 9 {
+                if index >= 1 && index <= 9 {
                     Text("\u{2318}\(index)")
                         .font(.system(size: 9, design: .monospaced))
                         .foregroundStyle(.tertiary)
@@ -140,7 +140,19 @@ struct BrowserButton: View {
             }
         }
         .buttonStyle(.plain)
-        .keyboardShortcut(KeyEquivalent(Character("\(index)")), modifiers: .command)
+        .modifier(OptionalKeyboardShortcut(index: index))
+    }
+}
+
+struct OptionalKeyboardShortcut: ViewModifier {
+    let index: Int
+
+    func body(content: Content) -> some View {
+        if index >= 1 && index <= 9 {
+            content.keyboardShortcut(KeyEquivalent(Character("\(index)")), modifiers: .command)
+        } else {
+            content
+        }
     }
 }
 
@@ -151,10 +163,12 @@ final class PickerWindowController {
     private var window: NSWindow?
     private var globalMonitor: Any?
     private var localMonitor: Any?
+    private var completionHandler: ((Browser?) -> Void)?
 
     func show(url: URL, browsers: [Browser], sourceApp: String? = nil, completion: @escaping (Browser?) -> Void) {
         dismiss()
 
+        self.completionHandler = completion
         let lastUsed = RulesEngine.shared.lastUsedBrowser(forHost: url.host ?? "")
 
         let pickerView = PickerView(
@@ -163,12 +177,10 @@ final class PickerWindowController {
             sourceApp: sourceApp,
             lastUsedBrowserID: lastUsed,
             onPick: { [weak self] browser in
-                completion(browser)
-                self?.dismiss()
+                self?.finish(with: browser)
             },
             onDismiss: { [weak self] in
-                completion(nil)
-                self?.dismiss()
+                self?.finish(with: nil)
             }
         )
 
@@ -214,23 +226,27 @@ final class PickerWindowController {
 
         // Escape key and click-outside handling
         w.onEscape = { [weak self] in
-            completion(nil)
-            self?.dismiss()
+            self?.finish(with: nil)
         }
 
         globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
-            completion(nil)
-            self?.dismiss()
+            self?.finish(with: nil)
         }
 
         localMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             if event.keyCode == 53 { // Escape
-                completion(nil)
-                self?.dismiss()
+                self?.finish(with: nil)
                 return nil
             }
             return event
         }
+    }
+
+    private func finish(with browser: Browser?) {
+        let handler = completionHandler
+        completionHandler = nil
+        handler?(browser)
+        dismiss()
     }
 
     func dismiss() {

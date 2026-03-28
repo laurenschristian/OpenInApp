@@ -9,8 +9,8 @@ final class RulesEngine: ObservableObject {
     }
 
     func save() {
-        config.save()
         objectWillChange.send()
+        config.save()
     }
 
     func resolve(url: URL, sourceApp: String?) -> Browser? {

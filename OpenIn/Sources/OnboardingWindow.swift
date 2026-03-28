@@ -77,12 +77,15 @@ struct FeatureRow: View {
     }
 }
 
-final class OnboardingWindowController {
+final class OnboardingWindowController: NSObject, NSWindowDelegate {
     static let shared = OnboardingWindowController()
     private var window: NSWindow?
 
     func show() {
-        guard window == nil else { return }
+        guard window == nil else {
+            window?.makeKeyAndOrderFront(nil)
+            return
+        }
 
         let view = OnboardingView(onDismiss: { [weak self] in
             self?.dismiss()
@@ -99,6 +102,7 @@ final class OnboardingWindowController {
         )
         w.contentView = hostingView
         w.title = "OpenIn"
+        w.delegate = self
         w.center()
         w.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
@@ -107,6 +111,10 @@ final class OnboardingWindowController {
 
     func dismiss() {
         window?.close()
+        window = nil
+    }
+
+    func windowWillClose(_ notification: Notification) {
         window = nil
     }
 }

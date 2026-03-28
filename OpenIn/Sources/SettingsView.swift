@@ -382,7 +382,7 @@ struct AboutTab: View {
             Text("OpenIn")
                 .font(.title)
                 .fontWeight(.bold)
-            Text("v1.1.0")
+            Text("v1.2.0")
                 .foregroundStyle(.secondary)
             Text("A fast, native URL router for macOS")
                 .foregroundStyle(.secondary)
