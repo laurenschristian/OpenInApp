@@ -43,6 +43,12 @@ open OpenIn.xcodeproj
 
 Build with Xcode 15+ targeting macOS 14+. See [Building from Source](#building-from-source) for details.
 
+## Screenshot
+
+<p align="center">
+  <img src="screenshots/picker.png" width="600" alt="OpenIn browser picker">
+</p>
+
 ## Quick Start
 
 1. Open OpenIn from `/Applications`
