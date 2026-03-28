@@ -91,12 +91,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             queue: .main
         )
 
-        source.setEventHandler { [weak self] in
+        source.setEventHandler { [weak self, weak source] in
             RulesEngine.shared.config = AppConfig.load()
             RulesEngine.shared.objectWillChange.send()
 
             // Re-watch if file was replaced (delete+rename from atomic writes)
-            let flags = source.data
+            guard let flags = source?.data else { return }
             if flags.contains(.delete) || flags.contains(.rename) {
                 self?.configWatcher?.cancel()
                 self?.configWatcher = nil
@@ -241,10 +241,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             if let defaultID = engine.config.defaultBrowserID,
                let browser = bm.browser(for: defaultID) {
                 browser.open(cleanURL, profile: engine.config.defaultBrowserProfile)
+                engine.recordURL(cleanURL, browserID: defaultID, sourceApp: sourceApp)
+                showHUD(browserName: browser.name, host: cleanURL.host ?? cleanURL.absoluteString)
             } else {
                 NSWorkspace.shared.open(cleanURL)
             }
-            engine.recordURL(cleanURL, browserID: engine.config.defaultBrowserID ?? "", sourceApp: sourceApp)
             return
         }
 

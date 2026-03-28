@@ -13,7 +13,7 @@ A fast, native macOS URL router and browser picker.<br>
 
 - **Native macOS app** -- SwiftUI + AppKit, no Electron, no web views
 - **Browser picker** -- popup appears near your mouse with all installed browsers
-- **Keyboard shortcuts** -- Cmd+1 through Cmd+9 for instant selection
+- **Keyboard shortcuts** -- press 1-9 for instant selection in the picker
 - **Rules engine** -- route URLs automatically based on domain patterns, regex, and source app
 - **Source app detection** -- match rules based on which app opened the URL
 - **Browser profiles** -- open in specific Chrome profiles or Firefox profiles
@@ -63,7 +63,7 @@ This builds a Release binary and copies it to `/Applications`. Requires Xcode 15
 4. Click any link -- OpenIn intercepts it
 5. If a rule matches, the URL opens in the target browser automatically
 6. If no rule matches, the picker popup appears near your mouse
-7. Click a browser or press Cmd+1-9
+7. Click a browser or press 1-9
 
 ## Configuration
 
@@ -72,7 +72,7 @@ Config lives at `~/.config/openin/config.json`. Edit it directly or use the Sett
 ```json
 {
   "defaultBrowserID": "com.apple.Safari",
-  "hideAfterPick": true,
+  "activateBrowser": true,
   "showPickerOnNoMatch": true,
   "rules": [
     {
@@ -95,7 +95,7 @@ Config lives at `~/.config/openin/config.json`. Edit it directly or use the Sett
       "pattern": "*.atlassian.net",
       "isRegex": false,
       "targetBrowserID": "com.google.Chrome",
-      "profileDirectory": "Profile 2",
+      "browserProfile": "Profile 2",
       "enabled": true
     }
   ]
@@ -115,8 +115,8 @@ Rules are evaluated top-to-bottom. The first match wins. If no rule matches, the
 | `isRegex` | no | `true` for regex, `false` for glob (default: `false`) |
 | `targetBrowserID` | yes | Bundle ID of the target browser |
 | `sourceAppBundleID` | no | Only match URLs opened from this app |
-| `profileDirectory` | no | Chrome profile directory or Firefox profile name |
-| `privateMode` | no | Open in private/incognito window |
+| `browserProfile` | no | Chrome profile directory or Firefox profile name |
+| `openIncognito` | no | Open in private/incognito window |
 | `enabled` | no | `true` or `false` (default: `true`) |
 
 ### Pattern examples
@@ -162,7 +162,7 @@ OpenIn supports opening URLs in specific browser profiles.
   "name": "Work in Chrome Work Profile",
   "pattern": "*.company.com",
   "targetBrowserID": "com.google.Chrome",
-  "profileDirectory": "Profile 2"
+  "browserProfile": "Profile 2"
 }
 ```
 
@@ -175,7 +175,7 @@ Chrome is launched with `--profile-directory="Profile 2"`.
   "name": "Dev in Firefox Dev Profile",
   "pattern": "localhost*",
   "targetBrowserID": "org.mozilla.firefox",
-  "profileDirectory": "dev-profile"
+  "browserProfile": "dev-profile"
 }
 ```
 

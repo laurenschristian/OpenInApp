@@ -92,10 +92,14 @@ struct GeneralTab: View {
                     }
                 ))
 
-
                 Toggle("Switch to browser when opening URL", isOn: Binding(
                     get: { rulesEngine.config.activateBrowser },
                     set: { rulesEngine.config.activateBrowser = $0; rulesEngine.save() }
+                ))
+
+                Toggle("Show notification when URL is routed", isOn: Binding(
+                    get: { rulesEngine.config.showNotifications },
+                    set: { rulesEngine.config.showNotifications = $0; rulesEngine.save() }
                 ))
             }
 

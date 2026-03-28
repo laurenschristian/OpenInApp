@@ -88,6 +88,27 @@ struct Rule: Identifiable, Codable {
     var openIncognito: Bool = false
     var enabled: Bool = true
 
+    init(id: String = UUID().uuidString, name: String, pattern: String, isRegex: Bool = false,
+         sourceAppBundleID: String? = nil, targetBrowserID: String, browserProfile: String? = nil,
+         openIncognito: Bool = false, enabled: Bool = true) {
+        self.id = id; self.name = name; self.pattern = pattern; self.isRegex = isRegex
+        self.sourceAppBundleID = sourceAppBundleID; self.targetBrowserID = targetBrowserID
+        self.browserProfile = browserProfile; self.openIncognito = openIncognito; self.enabled = enabled
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = (try? c.decode(String.self, forKey: .id)) ?? UUID().uuidString
+        name = try c.decode(String.self, forKey: .name)
+        pattern = try c.decode(String.self, forKey: .pattern)
+        isRegex = (try? c.decode(Bool.self, forKey: .isRegex)) ?? false
+        sourceAppBundleID = try? c.decode(String.self, forKey: .sourceAppBundleID)
+        targetBrowserID = try c.decode(String.self, forKey: .targetBrowserID)
+        browserProfile = try? c.decode(String.self, forKey: .browserProfile)
+        openIncognito = (try? c.decode(Bool.self, forKey: .openIncognito)) ?? false
+        enabled = (try? c.decode(Bool.self, forKey: .enabled)) ?? true
+    }
+
     func matches(url: URL, sourceApp: String?) -> Bool {
         guard enabled else { return false }
 
@@ -160,7 +181,6 @@ struct AppConfig: Codable {
     var defaultBrowserID: String?
     var defaultBrowserProfile: String?
     var showPickerOnNoMatch: Bool = true
-    var hideAfterPick: Bool = true
     var activateBrowser: Bool = true
     var launchAtLogin: Bool = false
     var recentURLs: [RecentURL] = []
@@ -168,6 +188,25 @@ struct AppConfig: Codable {
     var forceHTTPS: Bool = false
     var showNotifications: Bool = true
     var stats: Stats = Stats()
+
+    init() {}
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        pinnedBrowserIDs = (try? c.decode([String].self, forKey: .pinnedBrowserIDs)) ?? []
+        rules = (try? c.decode([Rule].self, forKey: .rules)) ?? []
+        rewriteRules = (try? c.decode([URLRewriteRule].self, forKey: .rewriteRules)) ?? []
+        defaultBrowserID = try? c.decode(String.self, forKey: .defaultBrowserID)
+        defaultBrowserProfile = try? c.decode(String.self, forKey: .defaultBrowserProfile)
+        showPickerOnNoMatch = (try? c.decode(Bool.self, forKey: .showPickerOnNoMatch)) ?? true
+        activateBrowser = (try? c.decode(Bool.self, forKey: .activateBrowser)) ?? true
+        launchAtLogin = (try? c.decode(Bool.self, forKey: .launchAtLogin)) ?? false
+        recentURLs = (try? c.decode([RecentURL].self, forKey: .recentURLs)) ?? []
+        stripTrackingParams = (try? c.decode(Bool.self, forKey: .stripTrackingParams)) ?? true
+        forceHTTPS = (try? c.decode(Bool.self, forKey: .forceHTTPS)) ?? false
+        showNotifications = (try? c.decode(Bool.self, forKey: .showNotifications)) ?? true
+        stats = (try? c.decode(Stats.self, forKey: .stats)) ?? Stats()
+    }
 
     static let defaultTrackingParams = [
         "utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content",

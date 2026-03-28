@@ -22,19 +22,12 @@ final class RulesEngine: ObservableObject {
             }
         }
 
-        if !config.showPickerOnNoMatch, let defaultID = config.defaultBrowserID {
-            return bm.browser(for: defaultID)
-        }
-
         return nil
     }
 
     func recordURL(_ url: URL, browserID: String, sourceApp: String?) {
+        let browserName = BrowserManager.shared.browser(for: browserID)?.name ?? browserID
         config.addRecentURL(url, browserID: browserID, sourceApp: sourceApp)
-        save()
-    }
-
-    func recordStat(url: URL, browserName: String) {
         config.recordStat(url: url, browserName: browserName)
         save()
     }
