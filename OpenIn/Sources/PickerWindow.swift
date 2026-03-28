@@ -27,60 +27,61 @@ struct PickerView: View {
         URL(string: editableURL) ?? url
     }
 
-    private let columns = [GridItem(.adaptive(minimum: 72), spacing: 10)]
-
     var body: some View {
-        VStack(spacing: 0) {
-            // Top accent line
-            LinearGradient(colors: [.blue, .indigo], startPoint: .leading, endPoint: .trailing)
-                .frame(height: 1)
+        ZStack {
+            // Full-screen blur backdrop — click to dismiss
+            Color.black.opacity(isPresented ? 0.35 : 0)
+                .ignoresSafeArea()
+                .onTapGesture { onDismiss() }
 
-            VStack(spacing: 10) {
-                // Editable URL bar
-                HStack(spacing: 6) {
+            // Centered card
+            VStack(spacing: 16) {
+                // URL bar
+                HStack(spacing: 8) {
+                    Image(systemName: "link")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(.tertiary)
+
                     TextField("URL", text: $editableURL)
-                        .font(.system(size: 11, design: .monospaced))
+                        .font(.system(size: 13, design: .monospaced))
                         .textFieldStyle(.plain)
                         .lineLimit(1)
-                        .truncationMode(.middle)
 
                     Button(action: copyURL) {
                         Image(systemName: copied ? "checkmark" : "doc.on.doc")
-                            .font(.system(size: 10, weight: .medium))
+                            .font(.system(size: 11, weight: .medium))
                             .foregroundStyle(copied ? .green : .secondary)
                     }
                     .buttonStyle(.plain)
-                    .help("Copy URL")
                 }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-                .background(.quaternary.opacity(0.5))
-                .clipShape(RoundedRectangle(cornerRadius: 6))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 6)
-                        .strokeBorder(.quaternary, lineWidth: 0.5)
-                )
                 .padding(.horizontal, 14)
-                .padding(.top, 12)
+                .padding(.vertical, 10)
+                .background(.ultraThinMaterial)
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10)
+                        .strokeBorder(.white.opacity(0.1), lineWidth: 0.5)
+                )
 
                 // Source app
                 if let sourceApp = sourceApp {
-                    HStack(spacing: 4) {
+                    HStack(spacing: 5) {
                         if let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: sourceApp) {
                             Image(nsImage: NSWorkspace.shared.icon(forFile: appURL.path))
                                 .resizable()
-                                .frame(width: 12, height: 12)
+                                .frame(width: 14, height: 14)
                         }
                         Text("from \(appName(for: sourceApp))")
-                            .font(.system(size: 9, weight: .medium))
+                            .font(.system(size: 11, weight: .medium))
                     }
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(.white.opacity(0.5))
                 }
 
                 // Browser grid
-                LazyVGrid(columns: columns, spacing: 10) {
+                let gridColumns = [GridItem(.adaptive(minimum: 80), spacing: 12)]
+                LazyVGrid(columns: gridColumns, spacing: 12) {
                     ForEach(Array(sortedBrowsers.enumerated()), id: \.element.id) { index, browser in
-                        BrowserButton(
+                        BrowserCard(
                             browser: browser,
                             index: index + 1,
                             isHovered: hoveredID == browser.id,
@@ -90,22 +91,23 @@ struct PickerView: View {
                         .onHover { hoveredID = $0 ? browser.id : nil }
                     }
                 }
-                .padding(.horizontal, 14)
-                .padding(.bottom, 14)
             }
+            .frame(maxWidth: 480)
+            .padding(28)
+            .background(
+                RoundedRectangle(cornerRadius: 20)
+                    .fill(.ultraThinMaterial)
+                    .shadow(color: .black.opacity(0.5), radius: 40, y: 10)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 20)
+                    .strokeBorder(.white.opacity(0.15), lineWidth: 0.5)
+            )
+            .opacity(isPresented ? 1 : 0)
+            .scaleEffect(isPresented ? 1 : 0.92)
         }
-        .frame(minWidth: 240)
-        .background(.regularMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 14))
-        .overlay(
-            RoundedRectangle(cornerRadius: 14)
-                .strokeBorder(.quaternary, lineWidth: 0.5)
-        )
-        .shadow(color: .black.opacity(0.3), radius: 20, y: 8)
-        .opacity(isPresented ? 1 : 0)
-        .scaleEffect(isPresented ? 1 : 0.95)
         .onAppear {
-            withAnimation(.easeOut(duration: 0.15)) {
+            withAnimation(.easeOut(duration: 0.18)) {
                 isPresented = true
             }
         }
@@ -136,7 +138,7 @@ struct PickerView: View {
     }
 }
 
-struct BrowserButton: View {
+struct BrowserCard: View {
     let browser: Browser
     let index: Int
     let isHovered: Bool
@@ -145,54 +147,55 @@ struct BrowserButton: View {
 
     var body: some View {
         Button(action: action) {
-            VStack(spacing: 4) {
+            VStack(spacing: 6) {
                 ZStack(alignment: .bottomTrailing) {
                     Image(nsImage: browser.icon)
                         .resizable()
                         .aspectRatio(contentMode: .fit)
-                        .frame(width: 40, height: 40)
-                        .scaleEffect(isHovered ? 1.12 : 1.0)
+                        .frame(width: 44, height: 44)
+                        .scaleEffect(isHovered ? 1.1 : 1.0)
                         .animation(.easeOut(duration: 0.12), value: isHovered)
 
-                    // Profile badge
                     if let profileName = browser.profileName {
-                        Text(String(profileName.prefix(2)))
-                            .font(.system(size: 8, weight: .bold, design: .rounded))
+                        Text(String(profileName.prefix(2)).uppercased())
+                            .font(.system(size: 7, weight: .heavy, design: .rounded))
                             .foregroundStyle(.white)
                             .frame(width: 16, height: 16)
                             .background(profileColor(for: profileName))
                             .clipShape(Circle())
-                            .overlay(Circle().strokeBorder(.white.opacity(0.3), lineWidth: 0.5))
-                            .offset(x: 3, y: 3)
-                    } else if isLastUsed {
-                        Circle()
-                            .fill(.blue)
-                            .frame(width: 8, height: 8)
-                            .offset(x: 2, y: 2)
+                            .offset(x: 4, y: 4)
                     }
                 }
 
                 Text(browser.name)
-                    .font(.system(size: 9, weight: isLastUsed ? .semibold : .regular))
+                    .font(.system(size: 10, weight: .medium))
                     .foregroundStyle(.primary)
                     .lineLimit(1)
                     .truncationMode(.tail)
-                    .frame(maxWidth: 72)
+                    .frame(maxWidth: 80)
 
+                // Simple number shortcut — just the number, no Cmd
                 if index >= 1 && index <= 9 {
-                    Text("\u{2318}\(index)")
-                        .font(.system(size: 8, weight: .medium, design: .monospaced))
-                        .foregroundStyle(.tertiary)
-                        .padding(.horizontal, 4)
-                        .padding(.vertical, 1)
-                        .background(.quaternary.opacity(0.5))
-                        .clipShape(Capsule())
+                    Text("\(index)")
+                        .font(.system(size: 11, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 22, height: 22)
+                        .background(.quaternary.opacity(0.6))
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
                 }
             }
-            .padding(.vertical, 4)
+            .padding(.vertical, 8)
+            .padding(.horizontal, 4)
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(isHovered ? .white.opacity(0.1) : .clear)
+            )
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(isLastUsed ? .blue.opacity(0.08) : .clear)
+            )
         }
         .buttonStyle(.plain)
-        .modifier(OptionalKeyboardShortcut(index: index))
     }
 
     private func profileColor(for name: String) -> Color {
@@ -202,24 +205,11 @@ struct BrowserButton: View {
     }
 }
 
-struct OptionalKeyboardShortcut: ViewModifier {
-    let index: Int
-
-    func body(content: Content) -> some View {
-        if index >= 1 && index <= 9 {
-            content.keyboardShortcut(KeyEquivalent(Character("\(index)")), modifiers: .command)
-        } else {
-            content
-        }
-    }
-}
-
 // MARK: - Window Controller
 
 final class PickerWindowController {
     static let shared = PickerWindowController()
     private var window: NSWindow?
-    private var globalMonitor: Any?
     private var localMonitor: Any?
     private var completionHandler: ((Browser?) -> Void)?
 
@@ -242,11 +232,14 @@ final class PickerWindowController {
             }
         )
 
+        // Full-screen window covering the entire screen
+        guard let screen = NSScreen.main else { return }
+        let screenFrame = screen.frame
+
         let hostingView = NSHostingView(rootView: pickerView)
-        hostingView.setFrameSize(hostingView.fittingSize)
 
         let w = PickerPanel(
-            contentRect: NSRect(origin: .zero, size: hostingView.fittingSize),
+            contentRect: screenFrame,
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
@@ -256,25 +249,9 @@ final class PickerWindowController {
         w.backgroundColor = .clear
         w.level = .floating
         w.hasShadow = false
-        w.isMovableByWindowBackground = false
-        w.collectionBehavior = [.canJoinAllSpaces, .stationary]
+        w.collectionBehavior = [.canJoinAllSpaces, .stationary, .fullScreenAuxiliary]
         w.becomesKeyOnlyIfNeeded = false
-
-        // Position near mouse
-        let mouseLocation = NSEvent.mouseLocation
-        let wSize = hostingView.fittingSize
-        let screen = NSScreen.screens.first { NSMouseInRect(mouseLocation, $0.frame, false) } ?? NSScreen.main
-
-        if let screen = screen {
-            let screenFrame = screen.visibleFrame
-            var origin = NSPoint(
-                x: mouseLocation.x - wSize.width / 2,
-                y: mouseLocation.y - wSize.height / 2
-            )
-            origin.x = max(screenFrame.minX + 10, min(origin.x, screenFrame.maxX - wSize.width - 10))
-            origin.y = max(screenFrame.minY + 10, min(origin.y, screenFrame.maxY - wSize.height - 10))
-            w.setFrameOrigin(origin)
-        }
+        w.setFrame(screenFrame, display: true)
 
         w.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
@@ -284,17 +261,34 @@ final class PickerWindowController {
             self?.finish(with: nil)
         }
 
-        globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
-            self?.finish(with: nil)
-        }
-
+        // Number keys 1-9 to pick browser directly (no Cmd needed)
         localMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
-            if event.keyCode == 53 {
+            if event.keyCode == 53 { // Escape
                 self?.finish(with: nil)
                 return nil
             }
+            // Check for number keys 1-9
+            if let chars = event.charactersIgnoringModifiers,
+               let num = Int(chars),
+               num >= 1 && num <= 9 && event.modifierFlags.intersection(.deviceIndependentFlagsMask).isEmpty {
+                let sorted = self?.sortedBrowsers(browsers: browsers, lastUsed: lastUsed) ?? browsers
+                if num <= sorted.count {
+                    self?.finish(with: sorted[num - 1])
+                    return nil
+                }
+            }
             return event
         }
+    }
+
+    private func sortedBrowsers(browsers: [Browser], lastUsed: String?) -> [Browser] {
+        guard let lastUsed = lastUsed else { return browsers }
+        var sorted = browsers
+        if let idx = sorted.firstIndex(where: { $0.id == lastUsed }), idx > 0 {
+            let browser = sorted.remove(at: idx)
+            sorted.insert(browser, at: 0)
+        }
+        return sorted
     }
 
     private func finish(with browser: Browser?) {
@@ -305,10 +299,6 @@ final class PickerWindowController {
     }
 
     func dismiss() {
-        if let monitor = globalMonitor {
-            NSEvent.removeMonitor(monitor)
-            globalMonitor = nil
-        }
         if let monitor = localMonitor {
             NSEvent.removeMonitor(monitor)
             localMonitor = nil
