@@ -8,9 +8,12 @@ INSTALL_PATH := /Applications/$(APP_NAME).app
 RELEASE_DIR := release
 VERSION := $(shell defaults read "$$(pwd)/$(BUILD_DIR)/Build/Products/$(CONFIG)/$(APP_NAME).app/Contents/Info" CFBundleShortVersionString 2>/dev/null || echo "0.0.0")
 
-.PHONY: build install uninstall clean release run
+.PHONY: bootstrap build install uninstall clean release run
 
-build:
+bootstrap:
+	@./scripts/bootstrap.sh
+
+build: bootstrap
 	xcodebuild -project $(PROJECT) -scheme $(SCHEME) -configuration $(CONFIG) \
 		-derivedDataPath $(BUILD_DIR) \
 		CODE_SIGN_IDENTITY="-" CODE_SIGNING_ALLOWED=YES \
