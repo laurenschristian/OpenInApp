@@ -10,23 +10,35 @@ final class RulesEngine: ObservableObject {
 
     func save() {
         config.save()
+        objectWillChange.send()
     }
 
     func resolve(url: URL, sourceApp: String?) -> Browser? {
         let bm = BrowserManager.shared
 
-        // Check rules in order
         for rule in config.rules where rule.enabled {
             if rule.matches(url: url, sourceApp: sourceApp) {
                 return bm.browser(for: rule.targetBrowserID)
             }
         }
 
-        // If no rule matched, use default browser (if set and picker disabled)
         if !config.showPickerOnNoMatch, let defaultID = config.defaultBrowserID {
             return bm.browser(for: defaultID)
         }
 
-        return nil // Show picker
+        return nil
+    }
+
+    func recordURL(_ url: URL, browserID: String, sourceApp: String?) {
+        config.addRecentURL(url, browserID: browserID, sourceApp: sourceApp)
+        save()
+    }
+
+    var recentURLs: [RecentURL] {
+        config.recentURLs
+    }
+
+    func lastUsedBrowser(forHost host: String) -> String? {
+        config.recentURLs.first { URL(string: $0.url)?.host == host }?.browserID
     }
 }

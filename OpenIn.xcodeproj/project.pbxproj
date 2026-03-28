@@ -15,6 +15,7 @@
 		E10000010000000000000006 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E10000020000000000000006; };
 		E10000010000000000000007 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = E10000020000000000000007; };
 		E10000010000000000000008 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = E10000020000000000000008; };
+		E10000010000000000000009 /* OnboardingWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = E10000020000000000000011; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -28,6 +29,7 @@
 		E10000020000000000000008 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		E10000020000000000000009 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		E10000020000000000000010 /* OpenIn.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = OpenIn.entitlements; sourceTree = "<group>"; };
+		E10000020000000000000011 /* OnboardingWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingWindow.swift; sourceTree = "<group>"; };
 		E10000030000000000000001 /* OpenIn.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = OpenIn.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -79,6 +81,7 @@
 				E10000020000000000000005 /* RulesEngine.swift */,
 				E10000020000000000000006 /* SettingsView.swift */,
 				E10000020000000000000007 /* Models.swift */,
+				E10000020000000000000011 /* OnboardingWindow.swift */,
 			);
 			path = Sources;
 			sourceTree = "<group>";
@@ -167,6 +170,7 @@
 				E10000010000000000000005 /* RulesEngine.swift in Sources */,
 				E10000010000000000000006 /* SettingsView.swift in Sources */,
 				E10000010000000000000007 /* Models.swift in Sources */,
+				E10000010000000000000009 /* OnboardingWindow.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -241,7 +245,7 @@
 					"@executable_path/../Frameworks",
 				);
 				LSUIElement = YES;
-				MARKETING_VERSION = 1.0.0;
+				MARKETING_VERSION = 1.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.lgn.openin;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -264,7 +268,7 @@
 					"@executable_path/../Frameworks",
 				);
 				LSUIElement = YES;
-				MARKETING_VERSION = 1.0.0;
+				MARKETING_VERSION = 1.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.lgn.openin;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;

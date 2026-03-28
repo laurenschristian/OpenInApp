@@ -1,10 +1,12 @@
 import SwiftUI
+import ServiceManagement
 
 struct SettingsView: View {
     @ObservedObject var rulesEngine = RulesEngine.shared
     @ObservedObject var browserManager = BrowserManager.shared
     @State private var selectedRuleID: String?
-    @State private var showingAddRule = false
+    @State private var showingRuleEditor = false
+    @State private var editingRule: Rule?
 
     var body: some View {
         TabView {
@@ -15,16 +17,22 @@ struct SettingsView: View {
                 rulesEngine: rulesEngine,
                 browserManager: browserManager,
                 selectedRuleID: $selectedRuleID,
-                showingAddRule: $showingAddRule
+                showingRuleEditor: $showingRuleEditor,
+                editingRule: $editingRule
             )
             .tabItem { Label("Rules", systemImage: "list.bullet") }
+
+            URLRewritingTab(rulesEngine: rulesEngine)
+                .tabItem { Label("URL Rewriting", systemImage: "wand.and.stars") }
 
             AboutTab()
                 .tabItem { Label("About", systemImage: "info.circle") }
         }
-        .frame(width: 520, height: 400)
+        .frame(width: 560, height: 440)
     }
 }
+
+// MARK: - General Tab
 
 struct GeneralTab: View {
     @ObservedObject var rulesEngine: RulesEngine
@@ -49,8 +57,8 @@ struct GeneralTab: View {
                 }
             }
 
-            Section("Default Browser") {
-                Picker("When no rule matches, open with:", selection: Binding(
+            Section("Behavior") {
+                Picker("When no rule matches:", selection: Binding(
                     get: { rulesEngine.config.defaultBrowserID ?? "" },
                     set: {
                         rulesEngine.config.defaultBrowserID = $0.isEmpty ? nil : $0
@@ -65,9 +73,19 @@ struct GeneralTab: View {
 
                 Toggle("Show picker when no rule matches", isOn: Binding(
                     get: { rulesEngine.config.showPickerOnNoMatch },
+                    set: { rulesEngine.config.showPickerOnNoMatch = $0; rulesEngine.save() }
+                ))
+
+                Toggle("Launch at login", isOn: Binding(
+                    get: { rulesEngine.config.launchAtLogin },
                     set: {
-                        rulesEngine.config.showPickerOnNoMatch = $0
+                        rulesEngine.config.launchAtLogin = $0
                         rulesEngine.save()
+                        if $0 {
+                            try? SMAppService.mainApp.register()
+                        } else {
+                            try? SMAppService.mainApp.unregister()
+                        }
                     }
                 ))
             }
@@ -92,54 +110,25 @@ struct GeneralTab: View {
     }
 }
 
+// MARK: - Rules Tab
+
 struct RulesTab: View {
     @ObservedObject var rulesEngine: RulesEngine
     @ObservedObject var browserManager: BrowserManager
     @Binding var selectedRuleID: String?
-    @Binding var showingAddRule: Bool
+    @Binding var showingRuleEditor: Bool
+    @Binding var editingRule: Rule?
 
     var body: some View {
         VStack(spacing: 0) {
             List(selection: $selectedRuleID) {
                 ForEach(rulesEngine.config.rules) { rule in
-                    HStack {
-                        Toggle("", isOn: Binding(
-                            get: { rule.enabled },
-                            set: { newVal in
-                                if let idx = rulesEngine.config.rules.firstIndex(where: { $0.id == rule.id }) {
-                                    rulesEngine.config.rules[idx].enabled = newVal
-                                    rulesEngine.save()
-                                }
-                            }
-                        ))
-                        .toggleStyle(.switch)
-                        .controlSize(.mini)
-
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(rule.name)
-                                .font(.system(size: 12, weight: .medium))
-                            HStack(spacing: 4) {
-                                Text(rule.isRegex ? "regex:" : "match:")
-                                    .font(.system(size: 9, design: .monospaced))
-                                    .foregroundStyle(.tertiary)
-                                Text(rule.pattern)
-                                    .font(.system(size: 10, design: .monospaced))
-                                    .foregroundStyle(.secondary)
-                            }
+                    RuleRow(rule: rule, rulesEngine: rulesEngine, browserManager: browserManager)
+                        .tag(rule.id)
+                        .onTapGesture(count: 2) {
+                            editingRule = rule
+                            showingRuleEditor = true
                         }
-
-                        Spacer()
-
-                        if let browser = browserManager.browser(for: rule.targetBrowserID) {
-                            Image(nsImage: browser.icon)
-                                .resizable()
-                                .frame(width: 20, height: 20)
-                            Text(browser.name)
-                                .font(.system(size: 11))
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    .tag(rule.id)
                 }
                 .onMove { source, destination in
                     rulesEngine.config.rules.move(fromOffsets: source, toOffset: destination)
@@ -149,23 +138,46 @@ struct RulesTab: View {
 
             Divider()
 
-            HStack {
-                Button(action: { showingAddRule = true }) {
+            HStack(spacing: 4) {
+                Button(action: {
+                    editingRule = nil
+                    showingRuleEditor = true
+                }) {
                     Image(systemName: "plus")
                 }
+                Button(action: {
+                    if let id = selectedRuleID,
+                       let rule = rulesEngine.config.rules.first(where: { $0.id == id }) {
+                        editingRule = rule
+                        showingRuleEditor = true
+                    }
+                }) {
+                    Image(systemName: "pencil")
+                }
+                .disabled(selectedRuleID == nil)
                 Button(action: deleteSelected) {
                     Image(systemName: "minus")
                 }
                 .disabled(selectedRuleID == nil)
+
                 Spacer()
+
+                Text("Double-click to edit")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.tertiary)
             }
             .padding(8)
         }
-        .sheet(isPresented: $showingAddRule) {
+        .sheet(isPresented: $showingRuleEditor) {
             RuleEditorView(
                 browserManager: browserManager,
+                existingRule: editingRule,
                 onSave: { rule in
-                    rulesEngine.config.rules.append(rule)
+                    if let idx = rulesEngine.config.rules.firstIndex(where: { $0.id == rule.id }) {
+                        rulesEngine.config.rules[idx] = rule
+                    } else {
+                        rulesEngine.config.rules.append(rule)
+                    }
                     rulesEngine.save()
                 }
             )
@@ -180,20 +192,91 @@ struct RulesTab: View {
     }
 }
 
+struct RuleRow: View {
+    let rule: Rule
+    @ObservedObject var rulesEngine: RulesEngine
+    @ObservedObject var browserManager: BrowserManager
+
+    var body: some View {
+        HStack {
+            Toggle("", isOn: Binding(
+                get: { rule.enabled },
+                set: { newVal in
+                    if let idx = rulesEngine.config.rules.firstIndex(where: { $0.id == rule.id }) {
+                        rulesEngine.config.rules[idx].enabled = newVal
+                        rulesEngine.save()
+                    }
+                }
+            ))
+            .toggleStyle(.switch)
+            .controlSize(.mini)
+
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 4) {
+                    Text(rule.name)
+                        .font(.system(size: 12, weight: .medium))
+                    if rule.openIncognito {
+                        Image(systemName: "eye.slash")
+                            .font(.system(size: 9))
+                            .foregroundStyle(.purple)
+                    }
+                    if rule.browserProfile != nil {
+                        Image(systemName: "person.circle")
+                            .font(.system(size: 9))
+                            .foregroundStyle(.blue)
+                    }
+                }
+                HStack(spacing: 4) {
+                    Text(rule.isRegex ? "regex:" : "match:")
+                        .font(.system(size: 9, design: .monospaced))
+                        .foregroundStyle(.tertiary)
+                    Text(rule.pattern)
+                        .font(.system(size: 10, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                    if let source = rule.sourceAppBundleID, !source.isEmpty {
+                        Text("from \(source)")
+                            .font(.system(size: 9))
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+            }
+
+            Spacer()
+
+            if let browser = browserManager.browser(for: rule.targetBrowserID) {
+                Image(nsImage: browser.icon)
+                    .resizable()
+                    .frame(width: 20, height: 20)
+                Text(browser.name)
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+}
+
+// MARK: - Rule Editor
+
 struct RuleEditorView: View {
     @ObservedObject var browserManager: BrowserManager
+    let existingRule: Rule?
     let onSave: (Rule) -> Void
     @Environment(\.dismiss) private var dismiss
 
+    @State private var id: String = UUID().uuidString
     @State private var name = ""
     @State private var pattern = ""
     @State private var isRegex = false
     @State private var sourceApp = ""
     @State private var targetBrowserID = ""
+    @State private var browserProfile = ""
+    @State private var openIncognito = false
+
+    var isEditing: Bool { existingRule != nil }
 
     var body: some View {
         VStack(spacing: 16) {
-            Text("New Rule")
+            Text(isEditing ? "Edit Rule" : "New Rule")
                 .font(.headline)
 
             Form {
@@ -210,19 +293,27 @@ struct RuleEditorView: View {
                         Text(browser.name).tag(browser.bundleID)
                     }
                 }
+
+                TextField("Browser profile (optional):", text: $browserProfile)
+                    .font(.system(.body, design: .monospaced))
+
+                Toggle("Open in private/incognito mode", isOn: $openIncognito)
             }
 
             HStack {
                 Button("Cancel") { dismiss() }
                     .keyboardShortcut(.cancelAction)
                 Spacer()
-                Button("Add Rule") {
+                Button(isEditing ? "Save" : "Add Rule") {
                     let rule = Rule(
+                        id: id,
                         name: name.isEmpty ? pattern : name,
                         pattern: pattern,
                         isRegex: isRegex,
                         sourceAppBundleID: sourceApp.isEmpty ? nil : sourceApp,
-                        targetBrowserID: targetBrowserID
+                        targetBrowserID: targetBrowserID,
+                        browserProfile: browserProfile.isEmpty ? nil : browserProfile,
+                        openIncognito: openIncognito
                     )
                     onSave(rule)
                     dismiss()
@@ -232,9 +323,54 @@ struct RuleEditorView: View {
             }
         }
         .padding(20)
-        .frame(width: 400)
+        .frame(width: 440)
+        .onAppear {
+            if let rule = existingRule {
+                id = rule.id
+                name = rule.name
+                pattern = rule.pattern
+                isRegex = rule.isRegex
+                sourceApp = rule.sourceAppBundleID ?? ""
+                targetBrowserID = rule.targetBrowserID
+                browserProfile = rule.browserProfile ?? ""
+                openIncognito = rule.openIncognito
+            }
+        }
     }
 }
+
+// MARK: - URL Rewriting Tab
+
+struct URLRewritingTab: View {
+    @ObservedObject var rulesEngine: RulesEngine
+
+    var body: some View {
+        Form {
+            Section("Automatic Cleanup") {
+                Toggle("Strip tracking parameters (utm_*, fbclid, gclid, etc.)", isOn: Binding(
+                    get: { rulesEngine.config.stripTrackingParams },
+                    set: { rulesEngine.config.stripTrackingParams = $0; rulesEngine.save() }
+                ))
+
+                Toggle("Force HTTPS", isOn: Binding(
+                    get: { rulesEngine.config.forceHTTPS },
+                    set: { rulesEngine.config.forceHTTPS = $0; rulesEngine.save() }
+                ))
+            }
+
+            Section("Tracking Parameters Removed") {
+                Text(AppConfig.defaultTrackingParams.joined(separator: ", "))
+                    .font(.system(size: 10, design: .monospaced))
+                    .foregroundStyle(.secondary)
+                    .textSelection(.enabled)
+            }
+        }
+        .formStyle(.grouped)
+        .padding()
+    }
+}
+
+// MARK: - About Tab
 
 struct AboutTab: View {
     var body: some View {
@@ -246,10 +382,21 @@ struct AboutTab: View {
             Text("OpenIn")
                 .font(.title)
                 .fontWeight(.bold)
-            Text("v1.0.0")
+            Text("v1.1.0")
                 .foregroundStyle(.secondary)
             Text("A fast, native URL router for macOS")
                 .foregroundStyle(.secondary)
+
+            HStack(spacing: 16) {
+                Button("GitHub") {
+                    NSWorkspace.shared.open(URL(string: "https://github.com/laurenschristian/OpenInApp")!)
+                }
+                Button("Config File") {
+                    NSWorkspace.shared.selectFile(AppConfig.configURL.path, inFileViewerRootedAtPath: "")
+                }
+            }
+            .padding(.top, 4)
+
             Spacer()
             Text("Config: ~/.config/openin/config.json")
                 .font(.system(size: 10, design: .monospaced))

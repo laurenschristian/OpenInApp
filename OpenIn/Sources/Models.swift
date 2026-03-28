@@ -12,11 +12,48 @@ struct Browser: Identifiable, Codable, Hashable {
         return NSWorkspace.shared.icon(forFile: url.path)
     }
 
-    func open(_ url: URL) {
+    func open(_ url: URL, profile: String? = nil, incognito: Bool = false) {
+        // If we need CLI args (profile or incognito), use Process
+        if profile != nil || incognito {
+            openWithArgs(url, profile: profile, incognito: incognito)
+            return
+        }
+
         let config = NSWorkspace.OpenConfiguration()
         config.activates = true
         guard let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) else { return }
         NSWorkspace.shared.open([url], withApplicationAt: appURL, configuration: config)
+    }
+
+    private func openWithArgs(_ url: URL, profile: String?, incognito: Bool) {
+        guard let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) else { return }
+        let execPath = appURL.appendingPathComponent("Contents/MacOS").path
+        let bid = bundleID.lowercased()
+
+        // Find the actual executable
+        guard let contents = try? FileManager.default.contentsOfDirectory(atPath: execPath),
+              let exec = contents.first else {
+            // Fallback to standard open
+            open(url)
+            return
+        }
+
+        var args: [String] = []
+
+        if bid.contains("chrome") || bid.contains("chromium") || bid.contains("brave") || bid.contains("edge") || bid.contains("vivaldi") || bid.contains("arc") {
+            if incognito { args.append("--incognito") }
+            if let profile = profile { args.append("--profile-directory=\(profile)") }
+        } else if bid.contains("firefox") {
+            if incognito { args.append("-private-window") }
+            if let profile = profile { args.append(contentsOf: ["-P", profile]) }
+        }
+
+        args.append(url.absoluteString)
+
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "\(execPath)/\(exec)")
+        process.arguments = args
+        try? process.run()
     }
 }
 
@@ -27,13 +64,15 @@ struct Rule: Identifiable, Codable {
     var isRegex: Bool = false
     var sourceAppBundleID: String?
     var targetBrowserID: String
+    var browserProfile: String?
+    var openIncognito: Bool = false
     var enabled: Bool = true
 
     func matches(url: URL, sourceApp: String?) -> Bool {
         guard enabled else { return false }
 
         if let requiredSource = sourceAppBundleID, !requiredSource.isEmpty {
-            guard sourceApp == requiredSource else { return false }
+            guard let source = sourceApp, source.lowercased() == requiredSource.lowercased() else { return false }
         }
 
         let host = url.host ?? ""
@@ -67,11 +106,49 @@ struct Rule: Identifiable, Codable {
     }
 }
 
+struct URLRewriteRule: Identifiable, Codable {
+    var id: String = UUID().uuidString
+    var name: String
+    var enabled: Bool = true
+    var type: RewriteType
+
+    enum RewriteType: Codable {
+        case stripQueryParams([String])
+        case forceHTTPS
+        case regexReplace(pattern: String, replacement: String)
+    }
+}
+
+struct RecentURL: Codable, Identifiable {
+    var id: String = UUID().uuidString
+    let url: String
+    let browserID: String
+    let timestamp: Date
+    let sourceApp: String?
+}
+
 struct AppConfig: Codable {
     var rules: [Rule] = []
+    var rewriteRules: [URLRewriteRule] = []
     var defaultBrowserID: String?
     var showPickerOnNoMatch: Bool = true
     var hideAfterPick: Bool = true
+    var launchAtLogin: Bool = false
+    var recentURLs: [RecentURL] = []
+    var stripTrackingParams: Bool = true
+    var forceHTTPS: Bool = false
+
+    static let defaultTrackingParams = [
+        "utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content",
+        "fbclid", "gclid", "gclsrc", "dclid", "gb_budget_id",
+        "msclkid", "mc_cid", "mc_eid",
+        "ref", "referer", "referrer",
+        "igshid", "twclid",
+        "yclid", "ymclid",
+        "_hsenc", "_hsmi", "hsCtaTracking",
+        "vero_id", "mkt_tok",
+        "s_cid", "sc_cmp", "sc_uid"
+    ]
 
     static let configURL: URL = {
         let dir = FileManager.default.homeDirectoryForCurrentUser
@@ -93,5 +170,53 @@ struct AppConfig: Codable {
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         guard let data = try? encoder.encode(self) else { return }
         try? data.write(to: Self.configURL, options: .atomic)
+    }
+
+    mutating func addRecentURL(_ url: URL, browserID: String, sourceApp: String?) {
+        let entry = RecentURL(url: url.absoluteString, browserID: browserID, timestamp: Date(), sourceApp: sourceApp)
+        recentURLs.insert(entry, at: 0)
+        if recentURLs.count > 20 { recentURLs = Array(recentURLs.prefix(20)) }
+    }
+
+    func rewriteURL(_ url: URL) -> URL {
+        var urlString = url.absoluteString
+
+        // Force HTTPS
+        if forceHTTPS && urlString.hasPrefix("http://") {
+            urlString = "https://" + urlString.dropFirst(7)
+        }
+
+        guard var components = URLComponents(string: urlString) else { return url }
+
+        // Strip tracking params
+        if stripTrackingParams, let queryItems = components.queryItems {
+            let filtered = queryItems.filter { item in
+                !Self.defaultTrackingParams.contains(item.name.lowercased())
+            }
+            components.queryItems = filtered.isEmpty ? nil : filtered
+        }
+
+        // Custom rewrite rules
+        for rule in rewriteRules where rule.enabled {
+            switch rule.type {
+            case .stripQueryParams(let params):
+                if let queryItems = components.queryItems {
+                    let filtered = queryItems.filter { !params.contains($0.name) }
+                    components.queryItems = filtered.isEmpty ? nil : filtered
+                }
+            case .forceHTTPS:
+                components.scheme = "https"
+            case .regexReplace(let pattern, let replacement):
+                if var str = components.string,
+                   let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive) {
+                    str = regex.stringByReplacingMatches(in: str, range: NSRange(str.startIndex..., in: str), withTemplate: replacement)
+                    if let newComponents = URLComponents(string: str) {
+                        components = newComponents
+                    }
+                }
+            }
+        }
+
+        return components.url ?? url
     }
 }

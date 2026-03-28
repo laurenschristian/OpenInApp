@@ -33,6 +33,38 @@ struct MenuBarView: View {
                 Divider()
             }
 
+            // Recent URLs
+            if !rulesEngine.recentURLs.isEmpty {
+                Text("Recent")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 4)
+
+                ForEach(rulesEngine.recentURLs.prefix(8)) { entry in
+                    Button {
+                        if let url = URL(string: entry.url),
+                           let browser = browserManager.browser(for: entry.browserID) {
+                            browser.open(url)
+                        }
+                    } label: {
+                        HStack(spacing: 6) {
+                            if let browser = browserManager.browser(for: entry.browserID) {
+                                Image(nsImage: browser.icon)
+                                    .resizable()
+                                    .frame(width: 14, height: 14)
+                            }
+                            Text(compactURL(entry.url))
+                                .font(.system(size: 11))
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+                        }
+                    }
+                }
+
+                Divider()
+            }
+
             Text("\(rulesEngine.config.rules.count) rules active")
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
@@ -53,5 +85,16 @@ struct MenuBarView: View {
             }
             .keyboardShortcut("q", modifiers: .command)
         }
+    }
+
+    private func compactURL(_ urlString: String) -> String {
+        guard let url = URL(string: urlString) else { return urlString }
+        let host = url.host ?? ""
+        let path = url.path
+        if path.isEmpty || path == "/" {
+            return host
+        }
+        let shortPath = path.count > 30 ? String(path.prefix(30)) + "..." : path
+        return "\(host)\(shortPath)"
     }
 }
