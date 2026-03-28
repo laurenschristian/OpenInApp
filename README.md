@@ -1,10 +1,13 @@
-# OpenIn
+<p align="center">
+  <img src="icon.png" width="128" height="128" alt="OpenIn icon">
+</p>
 
-A fast, native macOS URL router and browser picker.
+<h1 align="center">OpenIn</h1>
 
-![GitHub Release](https://img.shields.io/github/v/release/laurenschristian/OpenInApp)
-
-![OpenIn Picker](screenshots/picker.png)
+<p align="center">
+A fast, native macOS URL router and browser picker.<br>
+<a href="https://github.com/laurenschristian/OpenInApp/releases/latest"><img src="https://img.shields.io/github/v/release/laurenschristian/OpenInApp" alt="GitHub Release"></a>
+</p>
 
 ## Features
 
