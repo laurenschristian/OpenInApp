@@ -64,7 +64,7 @@ struct Browser: Identifiable, Codable, Hashable {
         process.arguments = args
         try? process.run()
 
-        // Activate on current Space — don't switch to the browser's Space
+        // Activate on current Space - don't switch to the browser's Space
         if activate {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [bundleID] in
                 guard let app = NSRunningApplication.runningApplications(withBundleIdentifier: bundleID).first else { return }
@@ -87,13 +87,17 @@ struct Rule: Identifiable, Codable {
     var browserProfile: String?
     var openIncognito: Bool = false
     var enabled: Bool = true
+    var timeStart: String?
+    var timeEnd: String?
 
     init(id: String = UUID().uuidString, name: String, pattern: String, isRegex: Bool = false,
          sourceAppBundleID: String? = nil, targetBrowserID: String, browserProfile: String? = nil,
-         openIncognito: Bool = false, enabled: Bool = true) {
+         openIncognito: Bool = false, enabled: Bool = true,
+         timeStart: String? = nil, timeEnd: String? = nil) {
         self.id = id; self.name = name; self.pattern = pattern; self.isRegex = isRegex
         self.sourceAppBundleID = sourceAppBundleID; self.targetBrowserID = targetBrowserID
         self.browserProfile = browserProfile; self.openIncognito = openIncognito; self.enabled = enabled
+        self.timeStart = timeStart; self.timeEnd = timeEnd
     }
 
     init(from decoder: Decoder) throws {
@@ -107,13 +111,35 @@ struct Rule: Identifiable, Codable {
         browserProfile = try? c.decode(String.self, forKey: .browserProfile)
         openIncognito = (try? c.decode(Bool.self, forKey: .openIncognito)) ?? false
         enabled = (try? c.decode(Bool.self, forKey: .enabled)) ?? true
+        timeStart = try? c.decode(String.self, forKey: .timeStart)
+        timeEnd = try? c.decode(String.self, forKey: .timeEnd)
     }
 
-    func matches(url: URL, sourceApp: String?) -> Bool {
+    var hasTimeWindow: Bool {
+        Self.minutesOfDay(timeStart) != nil && Self.minutesOfDay(timeEnd) != nil
+    }
+
+    static func minutesOfDay(_ hhmm: String?) -> Int? {
+        guard let hhmm else { return nil }
+        let parts = hhmm.split(separator: ":")
+        guard parts.count == 2, let h = Int(parts[0]), let m = Int(parts[1]),
+              (0...23).contains(h), (0...59).contains(m) else { return nil }
+        return h * 60 + m
+    }
+
+    func matches(url: URL, sourceApp: String?, now: Date = Date()) -> Bool {
         guard enabled else { return false }
 
         if let requiredSource = sourceAppBundleID, !requiredSource.isEmpty {
             guard let source = sourceApp, source.lowercased() == requiredSource.lowercased() else { return false }
+        }
+
+        if let start = Self.minutesOfDay(timeStart), let end = Self.minutesOfDay(timeEnd) {
+            let comps = Calendar.current.dateComponents([.hour, .minute], from: now)
+            let minute = (comps.hour ?? 0) * 60 + (comps.minute ?? 0)
+            // start > end means the window wraps past midnight (e.g. 22:00 to 06:00)
+            let inWindow = start <= end ? (minute >= start && minute < end) : (minute >= start || minute < end)
+            if !inWindow { return false }
         }
 
         let host = url.host ?? ""
@@ -188,6 +214,9 @@ struct AppConfig: Codable {
     var forceHTTPS: Bool = false
     var showNotifications: Bool = true
     var stats: Stats = Stats()
+    var nativeAppRouting: Bool = true
+    var disabledNativeApps: [String] = []
+    var showLinkPreview: Bool = true
 
     init() {}
 
@@ -206,6 +235,9 @@ struct AppConfig: Codable {
         forceHTTPS = (try? c.decode(Bool.self, forKey: .forceHTTPS)) ?? false
         showNotifications = (try? c.decode(Bool.self, forKey: .showNotifications)) ?? true
         stats = (try? c.decode(Stats.self, forKey: .stats)) ?? Stats()
+        nativeAppRouting = (try? c.decode(Bool.self, forKey: .nativeAppRouting)) ?? true
+        disabledNativeApps = (try? c.decode([String].self, forKey: .disabledNativeApps)) ?? []
+        showLinkPreview = (try? c.decode(Bool.self, forKey: .showLinkPreview)) ?? true
     }
 
     static let defaultTrackingParams = [

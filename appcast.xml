@@ -5,5 +5,16 @@
         <link>https://github.com/laurenschristian/OpenInApp</link>
         <description>OpenIn update feed</description>
         <language>en</language>
+        <item>
+            <title>v1.5.0</title>
+            <pubDate>Fri, 14 Aug 2026 11:30:00 -0500</pubDate>
+            <sparkle:version>1.5.0</sparkle:version>
+            <sparkle:shortVersionString>1.5.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <enclosure url="https://github.com/laurenschristian/OpenInApp/releases/download/v1.5.0/OpenIn-v1.5.0.zip"
+                       type="application/octet-stream"
+                       length="3470132"
+                       sparkle:edSignature="1IBj6CNScmnrYQEymKkVoNROyXJMBRFCGurdgfKb/xIOCzZteU1d+H+Za/z4g1D4cf7IiQe7X1VqXwWI8WA1Cw==" />
+        </item>
     </channel>
 </rss>

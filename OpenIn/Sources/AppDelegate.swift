@@ -236,6 +236,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
 
+        // Native app routing (Spotify, Zoom, Teams, ...) after explicit rules
+        if let native = NativeAppRouter.target(for: cleanURL, config: engine.config),
+           let appURL = NativeAppRouter.appURL(for: native) {
+            let openConfig = NSWorkspace.OpenConfiguration()
+            openConfig.activates = engine.config.activateBrowser
+            NSWorkspace.shared.open([cleanURL], withApplicationAt: appURL, configuration: openConfig)
+            engine.recordURL(cleanURL, browserID: native.bundleID, sourceApp: sourceApp)
+            showHUD(browserName: native.name, host: cleanURL.host ?? cleanURL.absoluteString)
+            return
+        }
+
         // If picker is disabled and no rule matched, use configured default
         if !engine.config.showPickerOnNoMatch {
             if let defaultID = engine.config.defaultBrowserID,

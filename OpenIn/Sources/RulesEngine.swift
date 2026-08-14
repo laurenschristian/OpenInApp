@@ -26,7 +26,9 @@ final class RulesEngine: ObservableObject {
     }
 
     func recordURL(_ url: URL, browserID: String, sourceApp: String?) {
-        let browserName = BrowserManager.shared.browser(for: browserID)?.name ?? browserID
+        let browserName = BrowserManager.shared.browser(for: browserID)?.name
+            ?? NativeAppRouter.targets.first { $0.bundleID == browserID }?.name
+            ?? browserID
         config.addRecentURL(url, browserID: browserID, sourceApp: sourceApp)
         config.recordStat(url: url, browserName: browserName)
         save()

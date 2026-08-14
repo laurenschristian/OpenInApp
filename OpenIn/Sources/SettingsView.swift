@@ -1,5 +1,6 @@
 import SwiftUI
 import ServiceManagement
+import UniformTypeIdentifiers
 
 struct SettingsView: View {
     @ObservedObject var rulesEngine = RulesEngine.shared
@@ -101,6 +102,66 @@ struct GeneralTab: View {
                     get: { rulesEngine.config.showNotifications },
                     set: { rulesEngine.config.showNotifications = $0; rulesEngine.save() }
                 ))
+
+                Toggle("Show page title preview in picker", isOn: Binding(
+                    get: { rulesEngine.config.showLinkPreview },
+                    set: { rulesEngine.config.showLinkPreview = $0; rulesEngine.save() }
+                ))
+            }
+
+            Section("Native apps") {
+                Toggle("Open links in native apps when installed", isOn: Binding(
+                    get: { rulesEngine.config.nativeAppRouting },
+                    set: { rulesEngine.config.nativeAppRouting = $0; rulesEngine.save() }
+                ))
+
+                if rulesEngine.config.nativeAppRouting {
+                    let installed = NativeAppRouter.installedTargets()
+                    if installed.isEmpty {
+                        Text("No supported native apps installed")
+                            .foregroundStyle(.secondary)
+                    } else {
+                        ForEach(installed, id: \.bundleID) { target in
+                            Toggle(isOn: Binding(
+                                get: { !rulesEngine.config.disabledNativeApps.contains(target.bundleID) },
+                                set: { enabled in
+                                    if enabled {
+                                        rulesEngine.config.disabledNativeApps.removeAll { $0 == target.bundleID }
+                                    } else {
+                                        rulesEngine.config.disabledNativeApps.append(target.bundleID)
+                                    }
+                                    rulesEngine.save()
+                                }
+                            )) {
+                                HStack(spacing: 8) {
+                                    if let appURL = NativeAppRouter.appURL(for: target) {
+                                        Image(nsImage: NSWorkspace.shared.icon(forFile: appURL.path))
+                                            .resizable()
+                                            .frame(width: 18, height: 18)
+                                    }
+                                    Text(target.name)
+                                    Spacer()
+                                    Text(target.hostPatterns.joined(separator: ", "))
+                                        .font(.system(size: 10, design: .monospaced))
+                                        .foregroundStyle(.tertiary)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            Section("Configuration") {
+                HStack {
+                    Button("Export...") { exportConfig() }
+                    Button("Import...") { importConfig() }
+                    Button("Reveal Config File") {
+                        NSWorkspace.shared.selectFile(AppConfig.configURL.path, inFileViewerRootedAtPath: "")
+                    }
+                }
+                Text("Config lives at ~/.config/openin/config.json and is safe to edit or git-track. Changes are picked up live.")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
             }
 
             Section("Detected Browsers") {
@@ -138,6 +199,27 @@ struct GeneralTab: View {
         }
         .formStyle(.grouped)
         .padding()
+    }
+
+    private func exportConfig() {
+        let panel = NSSavePanel()
+        panel.nameFieldStringValue = "openin-config.json"
+        panel.allowedContentTypes = [.json]
+        guard panel.runModal() == .OK, let dest = panel.url else { return }
+        try? FileManager.default.removeItem(at: dest)
+        try? FileManager.default.copyItem(at: AppConfig.configURL, to: dest)
+    }
+
+    private func importConfig() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.json]
+        panel.allowsMultipleSelection = false
+        guard panel.runModal() == .OK, let source = panel.url,
+              let data = try? Data(contentsOf: source),
+              let imported = try? JSONDecoder().decode(AppConfig.self, from: data) else { return }
+        rulesEngine.config = imported
+        rulesEngine.save()
+        browserManager.reload()
     }
 }
 
@@ -256,6 +338,11 @@ struct RuleRow: View {
                             .font(.system(size: 9))
                             .foregroundStyle(.blue)
                     }
+                    if rule.hasTimeWindow {
+                        Image(systemName: "clock")
+                            .font(.system(size: 9))
+                            .foregroundStyle(.orange)
+                    }
                 }
                 HStack(spacing: 4) {
                     Text(rule.isRegex ? "regex:" : "match:")
@@ -302,6 +389,9 @@ struct RuleEditorView: View {
     @State private var targetBrowserID = ""
     @State private var browserProfile = ""
     @State private var openIncognito = false
+    @State private var timeWindowEnabled = false
+    @State private var timeStartDate = Calendar.current.date(from: DateComponents(hour: 9, minute: 0)) ?? Date()
+    @State private var timeEndDate = Calendar.current.date(from: DateComponents(hour: 17, minute: 0)) ?? Date()
 
     var isEditing: Bool { existingRule != nil }
 
@@ -329,6 +419,16 @@ struct RuleEditorView: View {
                     .font(.system(.body, design: .monospaced))
 
                 Toggle("Open in private/incognito mode", isOn: $openIncognito)
+
+                Toggle("Only during a time window", isOn: $timeWindowEnabled)
+
+                if timeWindowEnabled {
+                    DatePicker("From:", selection: $timeStartDate, displayedComponents: .hourAndMinute)
+                    DatePicker("Until:", selection: $timeEndDate, displayedComponents: .hourAndMinute)
+                    Text("A window that ends before it starts wraps past midnight.")
+                        .font(.system(size: 10))
+                        .foregroundStyle(.tertiary)
+                }
             }
 
             HStack {
@@ -344,7 +444,9 @@ struct RuleEditorView: View {
                         sourceAppBundleID: sourceApp.isEmpty ? nil : sourceApp,
                         targetBrowserID: targetBrowserID,
                         browserProfile: browserProfile.isEmpty ? nil : browserProfile,
-                        openIncognito: openIncognito
+                        openIncognito: openIncognito,
+                        timeStart: timeWindowEnabled ? hhmm(timeStartDate) : nil,
+                        timeEnd: timeWindowEnabled ? hhmm(timeEndDate) : nil
                     )
                     onSave(rule)
                     dismiss()
@@ -365,8 +467,21 @@ struct RuleEditorView: View {
                 targetBrowserID = rule.targetBrowserID
                 browserProfile = rule.browserProfile ?? ""
                 openIncognito = rule.openIncognito
+                timeWindowEnabled = rule.hasTimeWindow
+                if let start = date(fromHHMM: rule.timeStart) { timeStartDate = start }
+                if let end = date(fromHHMM: rule.timeEnd) { timeEndDate = end }
             }
         }
+    }
+
+    private func hhmm(_ date: Date) -> String {
+        let c = Calendar.current.dateComponents([.hour, .minute], from: date)
+        return String(format: "%02d:%02d", c.hour ?? 0, c.minute ?? 0)
+    }
+
+    private func date(fromHHMM value: String?) -> Date? {
+        guard let minutes = Rule.minutesOfDay(value) else { return nil }
+        return Calendar.current.date(from: DateComponents(hour: minutes / 60, minute: minutes % 60))
     }
 }
 
@@ -492,7 +607,7 @@ struct AboutTab: View {
             Text("OpenIn")
                 .font(.title)
                 .fontWeight(.bold)
-            Text("v1.4.0")
+            Text("v\(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?")")
                 .foregroundStyle(.secondary)
             Text("A fast, native URL router for macOS")
                 .foregroundStyle(.secondary)
